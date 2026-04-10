@@ -1,0 +1,42 @@
+services:
+  auth-postgres:
+    image: postgres:16-alpine
+    container_name: auth-postgres
+    environment:
+      POSTGRES_DB: auth_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - auth-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d auth_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  authorization-service:
+    build:
+      context: ./services/authorization
+    container_name: authorization-service
+    depends_on:
+      auth-postgres:
+        condition: service_healthy
+    environment:
+      PORT: 3001
+      DB_HOST: auth-postgres
+      DB_PORT: 5432
+      DB_NAME: auth_db
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      JWT_SECRET: change-me
+      ADMIN_EMAIL: admin@soa.local
+      ADMIN_PASSWORD: admin123
+      ADMIN_USERNAME: admin
+    ports:
+      - "3001:3001"
+    command: sh -c "npm run db:init && npm run db:seed-admin && npm start"
+
+volumes:
+  auth-postgres-data:

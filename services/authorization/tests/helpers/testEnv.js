@@ -1,0 +1,10 @@
+process.env.PORT = process.env.PORT || "3001";
+process.env.DB_HOST = process.env.DB_HOST || "localhost";
+process.env.DB_PORT = process.env.DB_PORT || "5432";
+process.env.DB_NAME = process.env.DB_NAME || "auth_db";
+process.env.DB_USER = process.env.DB_USER || "postgres";
+process.env.DB_PASSWORD = process.env.DB_PASSWORD || "postgres";
+process.env.JWT_SECRET = process.env.JWT_SECRET || "test-secret";
+process.env.ADMIN_EMAIL = process.env.ADMIN_EMAIL || "admin@soa.local";
+process.env.ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin123";
+process.env.ADMIN_USERNAME = process.env.ADMIN_USERNAME || "admin";
