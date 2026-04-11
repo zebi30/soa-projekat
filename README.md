@@ -4,9 +4,10 @@ Mikroservisna arhitektura za SOA predmet.
 
 ## Servisi
 
-| Servis | Jezik | Port | Baza |
-|--------|-------|------|------|
-| Blog   | Go    | 8082 | PostgreSQL (5432) |
+| Servis        | Jezik      | Port | Baza               |
+|---------------|------------|------|---------------------|
+| Authorization | Node.js    | 3001 | PostgreSQL (5433)   |
+| Blog          | Go         | 8082 | PostgreSQL (5434)   |
 
 ## Pokretanje
 
@@ -19,7 +20,7 @@ Mikroservisna arhitektura za SOA predmet.
 docker-compose up --build
 ```
 
-Ovo podiže Blog servis i njegovu PostgreSQL bazu. Tabele se automatski kreiraju pri pokretanju.
+Ovo podiže sve servise i njihove PostgreSQL baze. Tabele se automatski kreiraju pri pokretanju.
 
 ### Zaustavljanje
 
@@ -37,71 +38,61 @@ docker-compose down -v
 
 ### Blogovi
 
-```bash
-# Kreiraj blog
-curl -X POST http://localhost:8082/api/blogs \
-  -H "Content-Type: application/json" \
-  -d '{"title": "Moj prvi blog", "description": "## Naslov\nTekst u **markdown** formatu", "authorId": 1}'
+| Metod  | URL                | Opis             |
+|--------|--------------------|------------------|
+| GET    | /api/blogs         | Svi blogovi      |
+| GET    | /api/blogs/:id     | Jedan blog       |
+| POST   | /api/blogs         | Kreiraj blog     |
+| PUT    | /api/blogs/:id     | Izmeni blog      |
+| DELETE | /api/blogs/:id     | Obriši blog      |
 
-# Svi blogovi
-curl http://localhost:8082/api/blogs
-
-# Pojedinačan blog
-curl http://localhost:8082/api/blogs/1
-
-# Izmeni blog
-curl -X PUT http://localhost:8082/api/blogs/1 \
-  -H "Content-Type: application/json" \
-  -d '{"title": "Novi naslov", "description": "Novi opis", "status": "published"}'
-
-# Obriši blog
-curl -X DELETE http://localhost:8082/api/blogs/1
+Body za POST/PUT:
+```json
+{
+  "title": "Moj prvi blog",
+  "description": "## Naslov\nTekst u **markdown** formatu",
+  "authorId": 1,
+  "images": ["https://example.com/slika.jpg"],
+  "status": "published"
+}
 ```
 
 ### Komentari
 
-```bash
-# Dodaj komentar
-curl -X POST http://localhost:8082/api/blogs/1/comments \
-  -H "Content-Type: application/json" \
-  -d '{"authorId": 2, "text": "Odličan blog!"}'
+| Metod  | URL                                | Opis              |
+|--------|------------------------------------|--------------------|
+| GET    | /api/blogs/:id/comments            | Komentari za blog  |
+| POST   | /api/blogs/:id/comments            | Dodaj komentar     |
+| PUT    | /api/blogs/:id/comments/:commentId | Izmeni komentar    |
+| DELETE | /api/blogs/:id/comments/:commentId | Obriši komentar    |
 
-# Svi komentari za blog
-curl http://localhost:8082/api/blogs/1/comments
-
-# Izmeni komentar
-curl -X PUT http://localhost:8082/api/blogs/1/comments/1 \
-  -H "Content-Type: application/json" \
-  -d '{"text": "Izmenjen komentar"}'
-
-# Obriši komentar
-curl -X DELETE http://localhost:8082/api/blogs/1/comments/1
+Body za POST/PUT:
+```json
+{
+  "authorId": 2,
+  "text": "Odličan blog!"
+}
 ```
 
-### Lajkovi (glasovi)
+### Lajkovi
 
-```bash
-# Lajkuj/unlajkuj blog (toggle)
-curl -X POST http://localhost:8082/api/blogs/1/votes \
-  -H "Content-Type: application/json" \
-  -d '{"userId": 1}'
+| Metod | URL                  | Opis                          |
+|-------|----------------------|-------------------------------|
+| POST  | /api/blogs/:id/votes | Lajkuj/unlajkuj (toggle)      |
+| GET   | /api/blogs/:id/votes | Broj lajkova                  |
 
-# Broj lajkova
-curl http://localhost:8082/api/blogs/1/votes
-```
-
-## Struktura Blog servisa
-
-```
-services/blogs/
-├── main.go              # Entry point
-├── config/config.go     # DB konekcija i inicijalizacija tabela
-├── models/              # Blog, Comment, Vote strukture
-├── handlers/            # HTTP handleri
-├── repository/          # SQL operacije
-└── router/router.go     # Definicija ruta
+Body za POST:
+```json
+{
+  "userId": 1
+}
 ```
 
 ## Docker arhitektura
 
-Svi servisi komuniciraju preko zajedničke `soa-network` mreže. Svaki servis ima svoju bazu podataka.
+Svi servisi su na zajedničkoj Docker Compose mreži. Svaki servis ima svoju PostgreSQL instancu.
+
+```
+auth-postgres    (5433) ← authorization-service (3001)
+blogs-postgres   (5434) ← blogs-service         (8082)
+```
