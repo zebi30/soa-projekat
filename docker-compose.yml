@@ -1,42 +1,36 @@
-version: "3.8"
-
 services:
-  blogs-db:
+  blogs-postgres:
     image: postgres:16-alpine
-    container_name: blogs-db
+    container_name: blogs-postgres
     environment:
       POSTGRES_DB: blogs_db
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5432:5432"
+      - "5434:5432"
     volumes:
-      - blogs-db-data:/var/lib/postgresql/data
-    networks:
-      - soa-network
+      - blogs-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d blogs_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
-  blogs:
+  blogs-service:
     build:
       context: ./services/blogs
-      dockerfile: Dockerfile
     container_name: blogs-service
-    ports:
-      - "8082:8082"
+    depends_on:
+      blogs-postgres:
+        condition: service_healthy
     environment:
-      DB_HOST: blogs-db
+      DB_HOST: blogs-postgres
       DB_PORT: "5432"
       DB_USER: postgres
       DB_PASSWORD: postgres
       DB_NAME: blogs_db
-    depends_on:
-      - blogs-db
-    restart: on-failure
-    networks:
-      - soa-network
+    ports:
+      - "8082:8082"
 
 volumes:
-  blogs-db-data:
-
-networks:
-  soa-network:
-    driver: bridge
+  blogs-postgres-data:
