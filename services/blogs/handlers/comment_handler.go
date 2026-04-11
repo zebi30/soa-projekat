@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"blog-service/client"
 	"blog-service/models"
 	"blog-service/repository"
 	"encoding/json"
@@ -31,8 +32,14 @@ func (h *CommentHandler) GetByBlogID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	response := make([]models.CommentResponse, 0, len(comments))
+	for _, c := range comments {
+		author, _ := client.GetUserByID(c.AuthorID)
+		response = append(response, models.NewCommentResponse(c, author))
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(comments)
+	json.NewEncoder(w).Encode(response)
 }
 
 func (h *CommentHandler) Create(w http.ResponseWriter, r *http.Request) {
@@ -60,9 +67,11 @@ func (h *CommentHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	author, _ := client.GetUserByID(comment.AuthorID)
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(comment)
+	json.NewEncoder(w).Encode(models.NewCommentResponse(comment, author))
 }
 
 func (h *CommentHandler) Update(w http.ResponseWriter, r *http.Request) {

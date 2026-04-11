@@ -124,6 +124,12 @@ function createAuthService(dependencies = {}) {
       };
     },
 
+    async getUserById(id) {
+      const user = await repository.findById(id);
+      if (!user) return null;
+      return user;
+    },
+
     async listUsers() {
       return repository.listAllSafeUsers();
     }

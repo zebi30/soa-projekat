@@ -39,6 +39,19 @@ async function findByUsername(username) {
   return result.rows[0] || null;
 }
 
+async function findById(id) {
+  const result = await db.query(
+    `
+      SELECT id, username, email, role, created_at
+      FROM users
+      WHERE id = $1
+    `,
+    [id]
+  );
+
+  return result.rows[0] || null;
+}
+
 async function listAllSafeUsers() {
   const result = await db.query(
     `
@@ -55,5 +68,6 @@ module.exports = {
   createUser,
   findByEmail,
   findByUsername,
+  findById,
   listAllSafeUsers
 };

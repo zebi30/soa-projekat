@@ -22,6 +22,16 @@ const login = asyncHandler(async (req, res) => {
   });
 });
 
+const getUserById = asyncHandler(async (req, res) => {
+  const user = await authService.getUserById(req.params.id);
+
+  if (!user) {
+    return res.status(404).json({ message: "User not found." });
+  }
+
+  res.status(200).json({ user });
+});
+
 const getUsers = asyncHandler(async (req, res) => {
   const users = await authService.listUsers();
 
@@ -33,5 +43,6 @@ const getUsers = asyncHandler(async (req, res) => {
 module.exports = {
   register,
   login,
+  getUserById,
   getUsers
 };
