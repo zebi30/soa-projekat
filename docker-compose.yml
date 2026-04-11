@@ -1,0 +1,42 @@
+version: "3.8"
+
+services:
+  blogs-db:
+    image: postgres:16-alpine
+    container_name: blogs-db
+    environment:
+      POSTGRES_DB: blogs_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - blogs-db-data:/var/lib/postgresql/data
+    networks:
+      - soa-network
+
+  blogs:
+    build:
+      context: ./services/blogs
+      dockerfile: Dockerfile
+    container_name: blogs-service
+    ports:
+      - "8082:8082"
+    environment:
+      DB_HOST: blogs-db
+      DB_PORT: "5432"
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: blogs_db
+    depends_on:
+      - blogs-db
+    restart: on-failure
+    networks:
+      - soa-network
+
+volumes:
+  blogs-db-data:
+
+networks:
+  soa-network:
+    driver: bridge
