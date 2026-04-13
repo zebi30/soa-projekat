@@ -5,7 +5,7 @@ async function createUser({ username, email, passwordHash, role }) {
     `
       INSERT INTO users (username, email, password_hash, role)
       VALUES ($1, $2, $3, $4)
-      RETURNING id, username, email, password_hash, role, is_blocked, created_at, updated_at
+      RETURNING id, username, email, password_hash, role, is_blocked, first_name, last_name, profile_image_url, biography, motto, created_at, updated_at
     `,
     [username, email, passwordHash, role]
   );
@@ -16,7 +16,7 @@ async function createUser({ username, email, passwordHash, role }) {
 async function findByEmail(email) {
   const result = await db.query(
     `
-      SELECT id, username, email, password_hash, role, is_blocked, created_at, updated_at
+      SELECT id, username, email, password_hash, role, is_blocked, first_name, last_name, profile_image_url, biography, motto, created_at, updated_at
       FROM users
       WHERE email = $1
     `,
@@ -29,7 +29,7 @@ async function findByEmail(email) {
 async function findByUsername(username) {
   const result = await db.query(
     `
-      SELECT id, username, email, password_hash, role, is_blocked, created_at, updated_at
+      SELECT id, username, email, password_hash, role, is_blocked, first_name, last_name, profile_image_url, biography, motto, created_at, updated_at
       FROM users
       WHERE username = $1
     `,
@@ -42,9 +42,24 @@ async function findByUsername(username) {
 async function findById(id) {
   const result = await db.query(
     `
-      SELECT id, username, email, role, created_at
+      SELECT id, username, email, role, is_blocked, first_name, last_name, profile_image_url, biography, motto, created_at, updated_at
       FROM users
       WHERE id = $1
+    `,
+    [id]
+  );
+
+  return result.rows[0] || null;
+}
+
+async function blockUserById(id) {
+  const result = await db.query(
+    `
+      UPDATE users
+      SET is_blocked = TRUE,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1
+      RETURNING id, username, email, role, is_blocked, first_name, last_name, profile_image_url, biography, motto, created_at, updated_at
     `,
     [id]
   );
@@ -55,7 +70,7 @@ async function findById(id) {
 async function listAllSafeUsers() {
   const result = await db.query(
     `
-      SELECT id, username, email, role, is_blocked, created_at, updated_at
+      SELECT id, username, email, role, is_blocked, first_name, last_name, profile_image_url, biography, motto, created_at, updated_at
       FROM users
       ORDER BY id ASC
     `
@@ -69,5 +84,6 @@ module.exports = {
   findByEmail,
   findByUsername,
   findById,
+  blockUserById,
   listAllSafeUsers
 };

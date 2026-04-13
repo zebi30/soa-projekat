@@ -16,6 +16,28 @@ function sanitizeUser(user) {
     email: user.email,
     role: user.role,
     is_blocked: user.is_blocked,
+    first_name: user.first_name ?? null,
+    last_name: user.last_name ?? null,
+    profile_image_url: user.profile_image_url ?? null,
+    biography: user.biography ?? null,
+    motto: user.motto ?? null,
+    created_at: user.created_at,
+    updated_at: user.updated_at
+  };
+}
+
+function sanitizeProfile(user) {
+  return {
+    id: user.id,
+    username: user.username,
+    email: user.email,
+    role: user.role,
+    first_name: user.first_name ?? null,
+    last_name: user.last_name ?? null,
+    profile_image_url: user.profile_image_url ?? null,
+    biography: user.biography ?? null,
+    motto: user.motto ?? null,
+    is_blocked: user.is_blocked,
     created_at: user.created_at,
     updated_at: user.updated_at
   };
@@ -128,6 +150,35 @@ function createAuthService(dependencies = {}) {
       const user = await repository.findById(id);
       if (!user) return null;
       return user;
+    },
+
+    async getMyProfile(userId) {
+      const user = await repository.findById(userId);
+
+      if (!user) {
+        return null;
+      }
+
+      return sanitizeProfile(user);
+    },
+
+    async blockUser(id) {
+      const user = await repository.findById(id);
+
+      if (!user) {
+        throw createHttpError(404, "User not found.");
+      }
+
+      if (user.role === "admin") {
+        throw createHttpError(400, "Admin accounts cannot be blocked.");
+      }
+
+      if (user.is_blocked) {
+        throw createHttpError(409, "User account is already blocked.");
+      }
+
+      const blockedUser = await repository.blockUserById(id);
+      return sanitizeUser(blockedUser);
     },
 
     async listUsers() {
