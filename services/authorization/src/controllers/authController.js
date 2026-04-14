@@ -40,9 +40,30 @@ const getUsers = asyncHandler(async (req, res) => {
   });
 });
 
+const getMyProfile = asyncHandler(async (req, res) => {
+  const profile = await authService.getMyProfile(req.user.sub);
+
+  if (!profile) {
+    return res.status(404).json({ message: "User not found." });
+  }
+
+  res.status(200).json({ profile });
+});
+
+const blockUser = asyncHandler(async (req, res) => {
+  const user = await authService.blockUser(req.params.id);
+
+  res.status(200).json({
+    message: "User blocked successfully.",
+    user
+  });
+});
+
 module.exports = {
   register,
   login,
   getUserById,
-  getUsers
+  getUsers,
+  getMyProfile,
+  blockUser
 };

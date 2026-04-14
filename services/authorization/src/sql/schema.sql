@@ -5,6 +5,18 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash VARCHAR(255) NOT NULL,
   role VARCHAR(20) NOT NULL CHECK (role IN ('guide', 'tourist', 'admin')),
   is_blocked BOOLEAN NOT NULL DEFAULT FALSE,
+  first_name VARCHAR(100),
+  last_name VARCHAR(100),
+  profile_image_url TEXT,
+  biography TEXT,
+  motto VARCHAR(255),
   created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS first_name VARCHAR(100),
+  ADD COLUMN IF NOT EXISTS last_name VARCHAR(100),
+  ADD COLUMN IF NOT EXISTS profile_image_url TEXT,
+  ADD COLUMN IF NOT EXISTS biography TEXT,
+  ADD COLUMN IF NOT EXISTS motto VARCHAR(255);
