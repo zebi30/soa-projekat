@@ -162,6 +162,38 @@ function createAuthService(dependencies = {}) {
       return sanitizeProfile(user);
     },
 
+    async updateMyProfile(userId, payload) {
+      const existing = await repository.findById(userId);
+
+      if (!existing) {
+        throw createHttpError(404, "User not found.");
+      }
+
+      const updatable = ["first_name", "last_name", "profile_image_url", "biography", "motto"];
+      const fields = {};
+
+      for (const key of updatable) {
+        if (payload && Object.prototype.hasOwnProperty.call(payload, key)) {
+          const value = payload[key];
+
+          if (value === null || value === undefined) {
+            fields[key] = null;
+            continue;
+          }
+
+          if (typeof value !== "string") {
+            throw createHttpError(400, `Field ${key} must be a string.`);
+          }
+
+          const trimmed = value.trim();
+          fields[key] = trimmed === "" ? null : trimmed;
+        }
+      }
+
+      const updated = await repository.updateUserById(userId, fields);
+      return sanitizeProfile(updated);
+    },
+
     async blockUser(id) {
       const user = await repository.findById(id);
 

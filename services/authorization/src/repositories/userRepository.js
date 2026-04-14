@@ -67,6 +67,36 @@ async function blockUserById(id) {
   return result.rows[0] || null;
 }
 
+async function updateUserById(id, fields) {
+  const allowed = ["first_name", "last_name", "profile_image_url", "biography", "motto"];
+  const setClauses = [];
+  const values = [];
+
+  for (const key of allowed) {
+    if (Object.prototype.hasOwnProperty.call(fields, key)) {
+      values.push(fields[key]);
+      setClauses.push(`${key} = $${values.length}`);
+    }
+  }
+
+  if (setClauses.length === 0) {
+    return findById(id);
+  }
+
+  values.push(id);
+  const result = await db.query(
+    `
+      UPDATE users
+      SET ${setClauses.join(", ")}, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $${values.length}
+      RETURNING id, username, email, role, is_blocked, first_name, last_name, profile_image_url, biography, motto, created_at, updated_at
+    `,
+    values
+  );
+
+  return result.rows[0] || null;
+}
+
 async function listAllSafeUsers() {
   const result = await db.query(
     `
@@ -85,5 +115,6 @@ module.exports = {
   findByUsername,
   findById,
   blockUserById,
+  updateUserById,
   listAllSafeUsers
 };
