@@ -50,6 +50,15 @@ const getMyProfile = asyncHandler(async (req, res) => {
   res.status(200).json({ profile });
 });
 
+const updateMyProfile = asyncHandler(async (req, res) => {
+  const profile = await authService.updateMyProfile(req.user.sub, req.body);
+
+  res.status(200).json({
+    message: "Profile updated successfully.",
+    profile
+  });
+});
+
 const blockUser = asyncHandler(async (req, res) => {
   const user = await authService.blockUser(req.params.id);
 
@@ -65,5 +74,6 @@ module.exports = {
   getUserById,
   getUsers,
   getMyProfile,
+  updateMyProfile,
   blockUser
 };
