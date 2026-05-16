@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"blog-service/client"
 	"blog-service/models"
 	"blog-service/repository"
 	"encoding/json"
@@ -19,7 +20,19 @@ func NewBlogHandler(repo *repository.BlogRepository) *BlogHandler {
 }
 
 func (h *BlogHandler) GetAll(w http.ResponseWriter, r *http.Request) {
-	blogs, err := h.Repo.GetAll()
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		http.Error(w, "Authorization token is required", http.StatusUnauthorized)
+		return
+	}
+
+	followedUserIDs, err := client.GetCurrentUserFollowedIDs(authHeader)
+	if err != nil {
+		http.Error(w, "Follower service unavailable", http.StatusBadGateway)
+		return
+	}
+
+	blogs, err := h.Repo.GetByAuthorIDs(followedUserIDs)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -39,6 +52,23 @@ func (h *BlogHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	blog, err := h.Repo.GetByID(id)
 	if err != nil {
 		http.Error(w, "Blog not found", http.StatusNotFound)
+		return
+	}
+
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		http.Error(w, "Authorization token is required", http.StatusUnauthorized)
+		return
+	}
+
+	followStatus, err := client.IsCurrentUserFollowing(authHeader, blog.AuthorID)
+	if err != nil {
+		http.Error(w, "Follower service unavailable", http.StatusBadGateway)
+		return
+	}
+
+	if !followStatus.IsFollowing {
+		http.Error(w, "You can read only blogs written by users you follow", http.StatusForbidden)
 		return
 	}
 

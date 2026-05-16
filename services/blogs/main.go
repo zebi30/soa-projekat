@@ -22,7 +22,7 @@ func main() {
 	voteRepo := repository.NewVoteRepository(db)
 
 	blogHandler := handlers.NewBlogHandler(blogRepo)
-	commentHandler := handlers.NewCommentHandler(commentRepo)
+	commentHandler := handlers.NewCommentHandler(commentRepo, blogRepo)
 	voteHandler := handlers.NewVoteHandler(voteRepo)
 
 	r := router.NewRouter(blogHandler, commentHandler, voteHandler)
