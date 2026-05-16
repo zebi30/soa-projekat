@@ -4,10 +4,11 @@ Mikroservisna arhitektura za SOA predmet.
 
 ## Servisi
 
-| Servis        | Jezik      | Port | Baza               |
+| Servis        | Jezik      | Port | Baza                |
 |---------------|------------|------|---------------------|
 | Authorization | Node.js    | 3001 | PostgreSQL (5433)   |
 | Blog          | Go         | 8082 | PostgreSQL (5434)   |
+| Tours         | Node.js    | 8083 | MongoDB (27017)     |
 
 ## Pokretanje
 
@@ -88,11 +89,54 @@ Body za POST:
 }
 ```
 
+## Tours servis API (port 8083)
+
+Svi endpointi zahtevaju `Authorization: Bearer <token>` header sa tokenom korisnika koji ima rolu `guide`.
+
+### Ture
+
+| Metod | URL                        | Opis                       |
+|-------|----------------------------|----------------------------|
+| POST  | /api/tours                 | Kreiraj draft turu         |
+| GET   | /api/tours/mine            | Sve moje ture              |
+| GET   | /api/tours/:id             | Detalji ture + key points  |
+
+Body za POST `/api/tours`:
+```json
+{
+  "name": "Stari grad",
+  "description": "Šetnja kroz centar",
+  "difficulty": "easy",
+  "tags": ["urban", "history"]
+}
+```
+
+Pri kreiranju, `status` se postavlja na `"draft"` i `price` na `0` (specifikacija).
+
+### Ključne tačke
+
+| Metod | URL                           | Opis                  |
+|-------|-------------------------------|-----------------------|
+| POST  | /api/tours/:id/keypoints      | Dodaj ključnu tačku   |
+| GET   | /api/tours/:id/keypoints      | Sve tačke ture        |
+
+Body za POST `/api/tours/:id/keypoints`:
+```json
+{
+  "name": "Kalemegdan",
+  "description": "Tvrđava na ušću Save",
+  "latitude": 44.8225,
+  "longitude": 20.4493,
+  "imageUrl": "https://example.com/kalemegdan.jpg"
+}
+```
+
 ## Docker arhitektura
 
-Svi servisi su na zajedničkoj Docker Compose mreži. Svaki servis ima svoju PostgreSQL instancu.
+Svi servisi su na zajedničkoj Docker Compose mreži. Svaki servis ima svoju instancu baze.
 
 ```
-auth-postgres    (5433) ← authorization-service (3001)
-blogs-postgres   (5434) ← blogs-service         (8082)
+auth-postgres    (5433)  ← authorization-service (3001)
+blogs-postgres   (5434)  ← blogs-service         (8082)
+tour-mongo       (27017) ← tours-service         (8083)
 ```

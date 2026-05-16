@@ -75,6 +75,34 @@ services:
     ports:
       - "8082:8082"
 
+  tour-mongo:
+    image: mongo:7
+    container_name: tour-mongo
+    environment:
+      MONGO_INITDB_DATABASE: tours_db
+    ports:
+      - "27017:27017"
+    volumes:
+      - tour-mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  tours-service:
+    build:
+      context: ./services/tours
+    container_name: tours-service
+    depends_on:
+      tour-mongo:
+        condition: service_healthy
+    environment:
+      PORT: 8083
+      MONGO_URI: mongodb://tour-mongo:27017/tours_db
+      JWT_SECRET: change-me
+    ports:
+      - "8083:8083"
   follower-neo4j:
     image: neo4j:5.26-community
     container_name: follower-neo4j
@@ -109,4 +137,5 @@ services:
 volumes:
   auth-postgres-data:
   blogs-postgres-data:
+  tour-mongo-data:
   follower-neo4j-data:
