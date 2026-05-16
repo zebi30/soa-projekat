@@ -12,11 +12,12 @@ import (
 )
 
 type CommentHandler struct {
-	Repo *repository.CommentRepository
+	Repo     *repository.CommentRepository
+	BlogRepo *repository.BlogRepository
 }
 
-func NewCommentHandler(repo *repository.CommentRepository) *CommentHandler {
-	return &CommentHandler{Repo: repo}
+func NewCommentHandler(repo *repository.CommentRepository, blogRepo *repository.BlogRepository) *CommentHandler {
+	return &CommentHandler{Repo: repo, BlogRepo: blogRepo}
 }
 
 func (h *CommentHandler) GetByBlogID(w http.ResponseWriter, r *http.Request) {
@@ -55,12 +56,37 @@ func (h *CommentHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if comment.Text == "" || comment.AuthorID == 0 {
-		http.Error(w, "Text and authorId are required", http.StatusBadRequest)
+	if comment.Text == "" {
+		http.Error(w, "Text is required", http.StatusBadRequest)
+		return
+	}
+
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		http.Error(w, "Authorization token is required", http.StatusUnauthorized)
 		return
 	}
 
 	comment.BlogID = blogID
+
+	blog, err := h.BlogRepo.GetByID(blogID)
+	if err != nil {
+		http.Error(w, "Blog not found", http.StatusNotFound)
+		return
+	}
+
+	followStatus, err := client.IsCurrentUserFollowing(authHeader, blog.AuthorID)
+	if err != nil {
+		http.Error(w, "Follower service unavailable", http.StatusBadGateway)
+		return
+	}
+
+	if !followStatus.IsFollowing {
+		http.Error(w, "You can comment only on blogs written by users you follow", http.StatusForbidden)
+		return
+	}
+
+	comment.AuthorID = followStatus.FollowerID
 
 	if err := h.Repo.Create(&comment); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
