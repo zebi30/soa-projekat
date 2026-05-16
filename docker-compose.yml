@@ -134,6 +134,18 @@ services:
     ports:
       - "8000:8000"
 
+  gateway:
+    build:
+      context: ./services/gateway
+    container_name: gateway
+    depends_on:
+      - authorization-service
+      - blogs-service
+      - tours-service
+      - follower-service
+    ports:
+      - "8080:80"
+
 volumes:
   auth-postgres-data:
   blogs-postgres-data:
