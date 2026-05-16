@@ -1,3 +1,5 @@
 node_modules/
 .env
 services/authorization/node_modules/
+__pycache__/
+*.pyc

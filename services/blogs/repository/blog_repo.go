@@ -3,6 +3,8 @@ package repository
 import (
 	"blog-service/models"
 	"database/sql"
+	"fmt"
+	"strings"
 )
 
 type BlogRepository struct {
@@ -20,6 +22,50 @@ func (r *BlogRepository) GetAll() ([]models.Blog, error) {
 		FROM blogs b
 		ORDER BY b.created_at DESC
 	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var blogs []models.Blog
+	for rows.Next() {
+		var b models.Blog
+		err := rows.Scan(&b.ID, &b.Title, &b.Description, &b.CreatedAt, &b.AuthorID, &b.Status, &b.VoteCount)
+		if err != nil {
+			return nil, err
+		}
+
+		images, err := r.getImagesByBlogID(b.ID)
+		if err != nil {
+			return nil, err
+		}
+		b.Images = images
+
+		blogs = append(blogs, b)
+	}
+
+	return blogs, nil
+}
+
+func (r *BlogRepository) GetByAuthorIDs(authorIDs []int) ([]models.Blog, error) {
+	if len(authorIDs) == 0 {
+		return []models.Blog{}, nil
+	}
+
+	placeholders := make([]string, len(authorIDs))
+	args := make([]interface{}, len(authorIDs))
+	for i, id := range authorIDs {
+		placeholders[i] = fmt.Sprintf("$%d", i+1)
+		args[i] = id
+	}
+
+	rows, err := r.DB.Query(fmt.Sprintf(`
+		SELECT b.id, b.title, b.description, b.created_at, b.author_id, b.status,
+		       COALESCE((SELECT COUNT(*) FROM votes WHERE blog_id = b.id), 0) as vote_count
+		FROM blogs b
+		WHERE b.author_id IN (%s)
+		ORDER BY b.created_at DESC
+	`, strings.Join(placeholders, ", ")), args...)
 	if err != nil {
 		return nil, err
 	}
