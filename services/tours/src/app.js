@@ -17,6 +17,7 @@ app.use("/health", healthRoutes);
 app.use("/api/tours", tourRoutes);
 app.use("/api/positions", positionRoutes);
 app.use("/simulator", express.static(path.join(__dirname, "public", "simulator")));
+app.use("/guide", express.static(path.join(__dirname, "public", "guide")));
 
 app.use((req, res) => {
   res.status(404).json({
