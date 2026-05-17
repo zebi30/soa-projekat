@@ -1,3 +1,4 @@
+const path = require("path");
 const express = require("express");
 const cors = require("cors");
 
@@ -5,6 +6,7 @@ require("./config/env");
 
 const healthRoutes = require("./routes/healthRoutes");
 const tourRoutes = require("./routes/tourRoutes");
+const positionRoutes = require("./routes/positionRoutes");
 
 const app = express();
 
@@ -13,6 +15,8 @@ app.use(express.json());
 
 app.use("/health", healthRoutes);
 app.use("/api/tours", tourRoutes);
+app.use("/api/positions", positionRoutes);
+app.use("/simulator", express.static(path.join(__dirname, "public", "simulator")));
 
 app.use((req, res) => {
   res.status(404).json({
