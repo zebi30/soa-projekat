@@ -15,6 +15,8 @@ router.get("/:id", authenticate, requireGuide, tourController.getTourById);
 
 router.post("/:id/keypoints", authenticate, requireGuide, keyPointController.addKeyPoint);
 router.get("/:id/keypoints", authenticate, requireGuide, keyPointController.listKeyPoints);
+router.put("/:id/keypoints/:keyPointId", authenticate, requireGuide, keyPointController.updateKeyPoint);
+router.delete("/:id/keypoints/:keyPointId", authenticate, requireGuide, keyPointController.deleteKeyPoint);
 
 router.post("/:id/reviews", authenticate, requireTourist, reviewController.createReview);
 router.get("/:id/reviews", authenticate, reviewController.getReviews);

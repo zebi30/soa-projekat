@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="sr">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Vodič — uređivanje ture</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <style>
+      * { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; height: 100%; font-family: system-ui, sans-serif; }
+      .layout { display: flex; height: 100%; }
+      aside {
+        width: 360px;
+        background: #1f2937;
+        color: white;
+        padding: 12px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      aside h1 { font-size: 16px; margin: 0; }
+      aside h2 { font-size: 13px; margin: 8px 0 4px; text-transform: uppercase; letter-spacing: 0.05em; color: #9ca3af; }
+      aside label { display: block; font-size: 12px; color: #d1d5db; margin-bottom: 2px; }
+      aside input, aside select, aside textarea {
+        width: 100%;
+        padding: 6px 8px;
+        background: #111827;
+        color: white;
+        border: 1px solid #4b5563;
+        border-radius: 4px;
+        font-size: 13px;
+        font-family: inherit;
+      }
+      aside textarea { resize: vertical; min-height: 60px; }
+      aside button {
+        padding: 6px 10px;
+        background: #2563eb;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 13px;
+      }
+      aside button.secondary { background: #374151; }
+      aside button.danger { background: #b91c1c; }
+      aside button.success { background: #15803d; }
+      aside button:hover { filter: brightness(1.15); }
+      aside button:disabled { opacity: 0.4; cursor: not-allowed; }
+      .row { display: flex; gap: 6px; }
+      .card {
+        background: #111827;
+        padding: 10px;
+        border-radius: 6px;
+        border: 1px solid #374151;
+      }
+      .card.active { border-color: #2563eb; }
+      .kp-item {
+        background: #111827;
+        padding: 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        margin-bottom: 6px;
+        border: 1px solid transparent;
+      }
+      .kp-item.selected { border-color: #2563eb; }
+      .kp-item .actions { display: flex; gap: 4px; margin-top: 6px; }
+      .kp-item button { padding: 3px 6px; font-size: 11px; }
+      #status {
+        padding: 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        background: #374151;
+      }
+      #status.error { background: #7f1d1d; }
+      #status.success { background: #14532d; }
+      #map { flex: 1; }
+      .map-mode-banner {
+        position: absolute;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #2563eb;
+        color: white;
+        padding: 6px 12px;
+        border-radius: 4px;
+        z-index: 1000;
+        font-size: 13px;
+        display: none;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      }
+      .map-mode-banner.visible { display: block; }
+    </style>
+  </head>
+  <body>
+    <div class="layout">
+      <aside>
+        <h1>Vodič — uređivanje ture</h1>
+
+        <div class="card">
+          <label for="token">JWT token (guide rola)</label>
+          <input id="token" type="text" placeholder="Bearer..." />
+          <div class="row" style="margin-top: 6px;">
+            <button id="load-tours">Učitaj moje ture</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Nova tura</h2>
+          <label for="new-name">Naziv</label>
+          <input id="new-name" type="text" />
+          <label for="new-desc" style="margin-top: 4px;">Opis</label>
+          <textarea id="new-desc"></textarea>
+          <label for="new-difficulty" style="margin-top: 4px;">Težina</label>
+          <select id="new-difficulty">
+            <option value="easy">easy</option>
+            <option value="medium">medium</option>
+            <option value="hard">hard</option>
+          </select>
+          <label for="new-tags" style="margin-top: 4px;">Tagovi (zarez)</label>
+          <input id="new-tags" type="text" placeholder="urban, history" />
+          <div class="row" style="margin-top: 6px;">
+            <button id="create-tour" class="success">Kreiraj turu</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Moje ture</h2>
+          <select id="tour-select" size="6" style="height: auto;"></select>
+        </div>
+
+        <div class="card" id="kp-card" style="display: none;">
+          <h2>Ključne tačke <span id="kp-count"></span></h2>
+          <div id="kp-list"></div>
+          <button id="add-mode" class="success">+ Dodaj klikom na mapu</button>
+        </div>
+
+        <div class="card" id="form-card" style="display: none;">
+          <h2 id="form-title">Nova ključna tačka</h2>
+          <label for="kp-name">Naziv</label>
+          <input id="kp-name" type="text" />
+          <label for="kp-desc" style="margin-top: 4px;">Opis</label>
+          <textarea id="kp-desc"></textarea>
+          <label for="kp-image" style="margin-top: 4px;">Slika URL (opc.)</label>
+          <input id="kp-image" type="text" />
+          <label style="margin-top: 4px;">Pozicija</label>
+          <div class="row">
+            <input id="kp-lat" type="number" step="any" placeholder="lat" />
+            <input id="kp-lon" type="number" step="any" placeholder="lon" />
+          </div>
+          <small style="color: #9ca3af; font-size: 11px;">
+            Klikni na mapu da promeniš poziciju.
+          </small>
+          <div class="row" style="margin-top: 6px;">
+            <button id="form-save" class="success">Sačuvaj</button>
+            <button id="form-cancel" class="secondary">Otkaži</button>
+          </div>
+        </div>
+
+        <div id="status">Unesite token i učitajte ture.</div>
+      </aside>
+
+      <div style="flex: 1; position: relative;">
+        <div id="map-mode-banner" class="map-mode-banner">Klikni na mapu da postaviš poziciju</div>
+        <div id="map"></div>
+      </div>
+    </div>
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script>
+      const API = "/api/tours";
+      const TOKEN_KEY = "guide_ui_token";
+
+      const $ = (id) => document.getElementById(id);
+      const tokenInput = $("token");
+      const statusEl = $("status");
+      const tourSelect = $("tour-select");
+      const kpCard = $("kp-card");
+      const kpList = $("kp-list");
+      const kpCount = $("kp-count");
+      const formCard = $("form-card");
+      const formTitle = $("form-title");
+      const banner = $("map-mode-banner");
+
+      const saved = localStorage.getItem(TOKEN_KEY);
+      if (saved) tokenInput.value = saved;
+
+      const map = L.map("map").setView([44.7866, 20.4489], 13);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: "© OpenStreetMap contributors"
+      }).addTo(map);
+
+      const markersLayer = L.layerGroup().addTo(map);
+      const lineLayer = L.layerGroup().addTo(map);
+
+      // state
+      let currentTourId = null;
+      let currentKeyPoints = [];
+      let mapMode = "idle"; // idle | add | edit-position
+      let editingKpId = null;
+
+      function setStatus(message, kind = "") {
+        statusEl.textContent = message;
+        statusEl.className = "";
+        if (kind) statusEl.classList.add(kind);
+      }
+
+      function getToken() {
+        const token = tokenInput.value.trim();
+        if (!token) {
+          setStatus("JWT token je obavezan.", "error");
+          return null;
+        }
+        localStorage.setItem(TOKEN_KEY, token);
+        return token;
+      }
+
+      function authHeaders() {
+        const token = getToken();
+        if (!token) return null;
+        return {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
+        };
+      }
+
+      async function apiFetch(path, options = {}) {
+        const headers = authHeaders();
+        if (!headers) throw new Error("missing token");
+        const res = await fetch(`${API}${path}`, { ...options, headers });
+        if (res.status === 204) return null;
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data.message || `HTTP ${res.status}`);
+        }
+        return data;
+      }
+
+      function setMapMode(mode) {
+        mapMode = mode;
+        if (mode === "add") {
+          banner.textContent = "Klikni na mapu da dodaš novu ključnu tačku";
+          banner.classList.add("visible");
+        } else if (mode === "edit-position") {
+          banner.textContent = "Klikni na mapu da postaviš novu poziciju za ovu tačku";
+          banner.classList.add("visible");
+        } else {
+          banner.classList.remove("visible");
+        }
+      }
+
+      function renderTours(tours) {
+        tourSelect.innerHTML = "";
+        if (!tours.length) {
+          tourSelect.innerHTML = '<option disabled>Nema tura. Kreiraj novu iznad.</option>';
+          return;
+        }
+        for (const t of tours) {
+          const opt = document.createElement("option");
+          opt.value = t.id;
+          opt.textContent = `${t.name} [${t.difficulty}] · ${t.keyPoints.length} KT`;
+          tourSelect.appendChild(opt);
+        }
+      }
+
+      function renderKeyPoints() {
+        markersLayer.clearLayers();
+        lineLayer.clearLayers();
+        kpList.innerHTML = "";
+        kpCount.textContent = `(${currentKeyPoints.length})`;
+
+        if (!currentKeyPoints.length) {
+          kpList.innerHTML = '<div style="color:#9ca3af;font-size:12px;">Nema ključnih tačaka.</div>';
+          return;
+        }
+
+        const coords = [];
+        currentKeyPoints.forEach((kp, idx) => {
+          const latlng = [kp.latitude, kp.longitude];
+          coords.push(latlng);
+
+          const marker = L.marker(latlng, { title: kp.name }).addTo(markersLayer);
+          marker.bindPopup(
+            `<strong>${idx + 1}. ${escapeHtml(kp.name)}</strong><br>${escapeHtml(kp.description)}<br>` +
+              `<small>${kp.latitude.toFixed(5)}, ${kp.longitude.toFixed(5)}</small>`
+          );
+
+          const item = document.createElement("div");
+          item.className = "kp-item";
+          item.innerHTML = `
+            <div><strong>${idx + 1}. ${escapeHtml(kp.name)}</strong></div>
+            <div style="color:#9ca3af;">${escapeHtml(kp.description).slice(0, 80)}</div>
+            <div style="color:#9ca3af;font-size:11px;">
+              ${kp.latitude.toFixed(5)}, ${kp.longitude.toFixed(5)}
+            </div>
+            <div class="actions">
+              <button data-edit="${kp.id}">Izmeni</button>
+              <button data-delete="${kp.id}" class="danger">Obriši</button>
+              <button data-focus="${kp.id}" class="secondary">Centriraj</button>
+            </div>
+          `;
+          kpList.appendChild(item);
+        });
+
+        if (coords.length >= 2) {
+          L.polyline(coords, { color: "#2563eb", weight: 3, opacity: 0.7 }).addTo(lineLayer);
+        }
+        if (coords.length) {
+          map.fitBounds(L.latLngBounds(coords).pad(0.2));
+        }
+      }
+
+      function escapeHtml(s) {
+        return String(s ?? "").replace(/[&<>"']/g, (c) =>
+          ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]
+        );
+      }
+
+      function clearForm() {
+        $("kp-name").value = "";
+        $("kp-desc").value = "";
+        $("kp-image").value = "";
+        $("kp-lat").value = "";
+        $("kp-lon").value = "";
+      }
+
+      function openAddForm(lat, lon) {
+        editingKpId = null;
+        formTitle.textContent = "Nova ključna tačka";
+        clearForm();
+        $("kp-lat").value = lat.toFixed(6);
+        $("kp-lon").value = lon.toFixed(6);
+        formCard.style.display = "";
+      }
+
+      function openEditForm(kp) {
+        editingKpId = kp.id;
+        formTitle.textContent = `Izmena: ${kp.name}`;
+        $("kp-name").value = kp.name;
+        $("kp-desc").value = kp.description;
+        $("kp-image").value = kp.imageUrl || "";
+        $("kp-lat").value = kp.latitude;
+        $("kp-lon").value = kp.longitude;
+        formCard.style.display = "";
+      }
+
+      function closeForm() {
+        formCard.style.display = "none";
+        setMapMode("idle");
+        editingKpId = null;
+      }
+
+      // Map click
+      map.on("click", (e) => {
+        const { lat, lng } = e.latlng;
+        if (mapMode === "add") {
+          openAddForm(lat, lng);
+          setMapMode("idle");
+        } else if (mapMode === "edit-position") {
+          $("kp-lat").value = lat.toFixed(6);
+          $("kp-lon").value = lng.toFixed(6);
+          setMapMode("idle");
+          setStatus("Pozicija ažurirana u formi. Klikni Sačuvaj.", "");
+        }
+      });
+
+      // Load tours
+      $("load-tours").addEventListener("click", loadTours);
+
+      async function loadTours() {
+        try {
+          const { tours } = await apiFetch("/mine");
+          renderTours(tours);
+          setStatus(`Učitano ${tours.length} tura.`, "success");
+        } catch (err) {
+          setStatus(`Greška: ${err.message}`, "error");
+        }
+      }
+
+      // Create tour
+      $("create-tour").addEventListener("click", async () => {
+        const body = {
+          name: $("new-name").value.trim(),
+          description: $("new-desc").value.trim(),
+          difficulty: $("new-difficulty").value,
+          tags: $("new-tags").value.split(",").map((s) => s.trim()).filter(Boolean)
+        };
+        if (!body.name || !body.description) {
+          setStatus("Naziv i opis su obavezni.", "error");
+          return;
+        }
+        try {
+          await apiFetch("/", { method: "POST", body: JSON.stringify(body) });
+          setStatus(`Tura "${body.name}" kreirana.`, "success");
+          $("new-name").value = "";
+          $("new-desc").value = "";
+          $("new-tags").value = "";
+          await loadTours();
+        } catch (err) {
+          setStatus(`Greška: ${err.message}`, "error");
+        }
+      });
+
+      // Tour select
+      tourSelect.addEventListener("change", async () => {
+        const id = tourSelect.value;
+        if (!id) return;
+        currentTourId = id;
+        closeForm();
+        try {
+          const { tour } = await apiFetch(`/${id}`);
+          currentKeyPoints = tour.keyPoints || [];
+          kpCard.style.display = "";
+          renderKeyPoints();
+          setStatus(`Tura "${tour.name}" učitana.`, "success");
+        } catch (err) {
+          setStatus(`Greška: ${err.message}`, "error");
+        }
+      });
+
+      // Add mode toggle
+      $("add-mode").addEventListener("click", () => {
+        if (!currentTourId) return;
+        setMapMode("add");
+      });
+
+      // KP list actions (delegated)
+      kpList.addEventListener("click", async (e) => {
+        const editId = e.target.dataset.edit;
+        const deleteId = e.target.dataset.delete;
+        const focusId = e.target.dataset.focus;
+        if (editId) {
+          const kp = currentKeyPoints.find((k) => k.id === editId);
+          if (kp) openEditForm(kp);
+        } else if (deleteId) {
+          const kp = currentKeyPoints.find((k) => k.id === deleteId);
+          if (!kp) return;
+          if (!confirm(`Obrisati "${kp.name}"?`)) return;
+          try {
+            await apiFetch(`/${currentTourId}/keypoints/${deleteId}`, { method: "DELETE" });
+            currentKeyPoints = currentKeyPoints.filter((k) => k.id !== deleteId);
+            renderKeyPoints();
+            setStatus(`Tačka "${kp.name}" obrisana.`, "success");
+          } catch (err) {
+            setStatus(`Greška: ${err.message}`, "error");
+          }
+        } else if (focusId) {
+          const kp = currentKeyPoints.find((k) => k.id === focusId);
+          if (kp) map.setView([kp.latitude, kp.longitude], Math.max(map.getZoom(), 15));
+        }
+      });
+
+      // Form: clicking the lat/lon inputs enters edit-position mode
+      $("kp-lat").addEventListener("focus", () => setMapMode("edit-position"));
+      $("kp-lon").addEventListener("focus", () => setMapMode("edit-position"));
+
+      // Form save
+      $("form-save").addEventListener("click", async () => {
+        if (!currentTourId) return;
+        const body = {
+          name: $("kp-name").value.trim(),
+          description: $("kp-desc").value.trim(),
+          latitude: Number($("kp-lat").value),
+          longitude: Number($("kp-lon").value),
+          imageUrl: $("kp-image").value.trim() || null
+        };
+        if (!body.name || !body.description) {
+          setStatus("Naziv i opis su obavezni.", "error");
+          return;
+        }
+        if (!Number.isFinite(body.latitude) || !Number.isFinite(body.longitude)) {
+          setStatus("Pozicija nije validna.", "error");
+          return;
+        }
+        try {
+          if (editingKpId) {
+            const { keyPoint } = await apiFetch(
+              `/${currentTourId}/keypoints/${editingKpId}`,
+              { method: "PUT", body: JSON.stringify(body) }
+            );
+            currentKeyPoints = currentKeyPoints.map((k) => (k.id === editingKpId ? keyPoint : k));
+            setStatus(`Tačka "${keyPoint.name}" ažurirana.`, "success");
+          } else {
+            const { keyPoint } = await apiFetch(
+              `/${currentTourId}/keypoints`,
+              { method: "POST", body: JSON.stringify(body) }
+            );
+            currentKeyPoints.push(keyPoint);
+            setStatus(`Tačka "${keyPoint.name}" dodata.`, "success");
+          }
+          renderKeyPoints();
+          closeForm();
+        } catch (err) {
+          setStatus(`Greška: ${err.message}`, "error");
+        }
+      });
+
+      $("form-cancel").addEventListener("click", () => {
+        closeForm();
+        setStatus("Otkazano.", "");
+      });
+
+      if (saved) loadTours();
+    </script>
+  </body>
+</html>

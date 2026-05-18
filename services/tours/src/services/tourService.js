@@ -143,10 +143,111 @@ async function listKeyPoints(authorId, tourId) {
   return tour.toJSON().keyPoints;
 }
 
+function validateKeyPointPatch({ name, description, latitude, longitude, imageUrl }) {
+  const patch = {};
+
+  if (name !== undefined) {
+    const trimmed = typeof name === "string" ? name.trim() : "";
+    if (!trimmed) {
+      throw createHttpError(400, "Key point name cannot be empty.");
+    }
+    patch.name = trimmed;
+  }
+
+  if (description !== undefined) {
+    const trimmed = typeof description === "string" ? description.trim() : "";
+    if (!trimmed) {
+      throw createHttpError(400, "Key point description cannot be empty.");
+    }
+    patch.description = trimmed;
+  }
+
+  if (latitude !== undefined) {
+    const lat = Number(latitude);
+    if (!Number.isFinite(lat) || lat < -90 || lat > 90) {
+      throw createHttpError(400, "Latitude must be a number between -90 and 90.");
+    }
+    patch.latitude = lat;
+  }
+
+  if (longitude !== undefined) {
+    const lon = Number(longitude);
+    if (!Number.isFinite(lon) || lon < -180 || lon > 180) {
+      throw createHttpError(400, "Longitude must be a number between -180 and 180.");
+    }
+    patch.longitude = lon;
+  }
+
+  if (imageUrl !== undefined) {
+    if (imageUrl === null) {
+      patch.imageUrl = null;
+    } else {
+      const trimmed = typeof imageUrl === "string" ? imageUrl.trim() : "";
+      patch.imageUrl = trimmed.length > 0 ? trimmed : null;
+    }
+  }
+
+  if (Object.keys(patch).length === 0) {
+    throw createHttpError(400, "No updatable fields provided.");
+  }
+
+  return patch;
+}
+
+function serializeKeyPoint(kp) {
+  return {
+    id: kp._id,
+    name: kp.name,
+    description: kp.description,
+    latitude: kp.latitude,
+    longitude: kp.longitude,
+    imageUrl: kp.imageUrl,
+    createdAt: kp.createdAt,
+    updatedAt: kp.updatedAt
+  };
+}
+
+async function updateKeyPoint(authorId, tourId, keyPointId, input) {
+  if (!isValidObjectId(keyPointId)) {
+    throw createHttpError(400, "Invalid key point id.");
+  }
+
+  const patch = validateKeyPointPatch(input);
+  const tour = await getOwnedTour(authorId, tourId);
+
+  const keyPoint = tour.keyPoints.id(keyPointId);
+  if (!keyPoint) {
+    throw createHttpError(404, "Key point not found.");
+  }
+
+  Object.assign(keyPoint, patch);
+  await tour.save();
+
+  return serializeKeyPoint(keyPoint);
+}
+
+async function deleteKeyPoint(authorId, tourId, keyPointId) {
+  if (!isValidObjectId(keyPointId)) {
+    throw createHttpError(400, "Invalid key point id.");
+  }
+
+  const tour = await getOwnedTour(authorId, tourId);
+
+  const keyPoint = tour.keyPoints.id(keyPointId);
+  if (!keyPoint) {
+    throw createHttpError(404, "Key point not found.");
+  }
+
+  keyPoint.deleteOne();
+  await tour.save();
+}
+
 module.exports = {
   createTour,
   listMyTours,
   getTourById,
   addKeyPoint,
-  listKeyPoints
+  listKeyPoints,
+  updateKeyPoint,
+  deleteKeyPoint
 };
