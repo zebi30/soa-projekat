@@ -94,6 +94,7 @@ services:
     build:
       context: ./services/tours
     container_name: tours-service
+    restart: on-failure
     depends_on:
       tour-mongo:
         condition: service_healthy
