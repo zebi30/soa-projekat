@@ -1,3 +1,11 @@
-FROM nginx:alpine
+FROM golang:1.23-alpine AS builder
+WORKDIR /app
+COPY go.mod ./
+COPY *.go ./
+RUN go build -o gateway .
 
-COPY nginx.conf /etc/nginx/nginx.conf
+FROM alpine:3.20
+WORKDIR /app
+COPY --from=builder /app/gateway .
+EXPOSE 80
+CMD ["./gateway"]
