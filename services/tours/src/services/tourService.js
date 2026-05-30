@@ -406,6 +406,19 @@ async function listPublishedTours() {
   return tours.map(toPublishedTourPreview);
 }
 
+async function getFullTourById(tourId) {
+  if (!isValidObjectId(tourId)) {
+    return null;
+  }
+
+  const tour = await Tour.findById(tourId);
+  if (!tour) {
+    return null;
+  }
+
+  return tour.toJSON();
+}
+
 module.exports = {
   createTour,
   listMyTours,
@@ -419,5 +432,6 @@ module.exports = {
   publishTour,
   archiveTour,
   activateTour,
-  listPublishedTours
+  listPublishedTours,
+  getFullTourById
 };

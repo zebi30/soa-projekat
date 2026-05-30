@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package purchase;
+
+service PurchaseService {
+  rpc Checkout(CheckoutRequest) returns (CheckoutResponse);
+  rpc ListMyPurchases(ListMyPurchasesRequest) returns (ListMyPurchasesResponse);
+}
+
+message CheckoutRequest {
+  string authorization = 1;
+}
+
+message CheckoutResponse {
+  string result_json = 1;
+}
+
+message ListMyPurchasesRequest {
+  string authorization = 1;
+}
+
+message ListMyPurchasesResponse {
+  string purchases_json = 1;
+}

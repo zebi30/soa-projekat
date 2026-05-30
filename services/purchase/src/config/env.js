@@ -5,7 +5,9 @@ dotenv.config();
 const requiredVariables = [
   "PORT",
   "MONGO_URI",
-  "JWT_SECRET"
+  "JWT_SECRET",
+  "TOURS_INTERNAL_URL",
+  "INTERNAL_API_KEY"
 ];
 
 const missingVariables = requiredVariables.filter((key) => !process.env[key]);
@@ -16,8 +18,9 @@ if (missingVariables.length > 0) {
 
 module.exports = {
   PORT: Number(process.env.PORT),
-  GRPC_PORT: Number(process.env.GRPC_PORT || 9093),
+  GRPC_PORT: Number(process.env.GRPC_PORT || 9094),
   MONGO_URI: process.env.MONGO_URI,
   JWT_SECRET: process.env.JWT_SECRET,
-  INTERNAL_API_KEY: process.env.INTERNAL_API_KEY || "internal-secret-key"
+  TOURS_INTERNAL_URL: process.env.TOURS_INTERNAL_URL,
+  INTERNAL_API_KEY: process.env.INTERNAL_API_KEY
 };

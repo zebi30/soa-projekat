@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SOA Turistička aplikacija — test konzola</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">SOA — test konzola</div>
+    <div class="config">
+      <label>Gateway</label>
+      <input id="apiBase" type="text" />
+      <button id="saveBase">Sačuvaj</button>
+    </div>
+    <div class="session" id="session">
+      <span id="sessionInfo">Nisi prijavljen</span>
+      <button id="logoutBtn" class="ghost">Odjava</button>
+    </div>
+  </header>
+
+  <nav class="tabs" id="tabs">
+    <button data-tab="auth" class="active">Auth</button>
+    <button data-tab="profile">Profil</button>
+    <button data-tab="tours-guide">Ture (vodič)</button>
+    <button data-tab="tours-tourist">Ture (turista)</button>
+    <button data-tab="purchase">Kupovina</button>
+    <button data-tab="followers">Praćenje</button>
+    <button data-tab="blog">Blog</button>
+    <button data-tab="admin">Admin</button>
+  </nav>
+
+  <main>
+    <section id="auth" class="tab active">
+      <h2>Registracija i prijava</h2>
+      <div class="card">
+        <h3>Registracija</h3>
+        <input id="reg-username" placeholder="korisničko ime" />
+        <input id="reg-email" placeholder="email" />
+        <input id="reg-password" type="password" placeholder="lozinka" />
+        <select id="reg-role">
+          <option value="guide">guide</option>
+          <option value="tourist">tourist</option>
+        </select>
+        <button data-action="register">Registruj</button>
+      </div>
+      <div class="card">
+        <h3>Prijava</h3>
+        <input id="login-email" placeholder="email" />
+        <input id="login-password" type="password" placeholder="lozinka" />
+        <button data-action="login">Prijavi se</button>
+      </div>
+      <pre id="auth-out" class="output"></pre>
+    </section>
+
+    <section id="profile" class="tab">
+      <h2>Profil</h2>
+      <div class="card">
+        <button data-action="getProfile">Učitaj moj profil</button>
+      </div>
+      <div class="card">
+        <h3>Izmena profila</h3>
+        <input id="pf-first" placeholder="ime" />
+        <input id="pf-last" placeholder="prezime" />
+        <input id="pf-image" placeholder="URL profilne slike" />
+        <input id="pf-bio" placeholder="biografija" />
+        <input id="pf-motto" placeholder="moto" />
+        <button data-action="updateProfile">Sačuvaj profil</button>
+      </div>
+      <pre id="profile-out" class="output"></pre>
+    </section>
+
+    <section id="tours-guide" class="tab">
+      <h2>Ture — vodič</h2>
+      <div class="card">
+        <h3>Kreiraj turu</h3>
+        <input id="tour-name" placeholder="naziv" />
+        <input id="tour-desc" placeholder="opis" />
+        <select id="tour-diff">
+          <option value="easy">easy</option>
+          <option value="medium">medium</option>
+          <option value="hard">hard</option>
+        </select>
+        <input id="tour-tags" placeholder="tagovi (zarezom: urban,history)" />
+        <button data-action="createTour">Kreiraj</button>
+      </div>
+      <div class="card">
+        <button data-action="listMyTours">Moje ture</button>
+      </div>
+      <div class="card">
+        <h3>Rad na turi (unesi ID ture)</h3>
+        <input id="tour-id" placeholder="ID ture" />
+        <button data-action="getTour">Detalji ture</button>
+        <hr />
+        <h4>Ključna tačka</h4>
+        <input id="kp-name" placeholder="naziv" />
+        <input id="kp-desc" placeholder="opis" />
+        <input id="kp-lat" placeholder="latitude" />
+        <input id="kp-lon" placeholder="longitude" />
+        <input id="kp-img" placeholder="URL slike (opciono)" />
+        <button data-action="addKeypoint">Dodaj tačku</button>
+        <button data-action="listKeypoints">Lista tačaka</button>
+        <hr />
+        <h4>Vreme prevoza</h4>
+        <select id="tt-transport">
+          <option value="walking">walking</option>
+          <option value="bicycle">bicycle</option>
+          <option value="car">car</option>
+        </select>
+        <input id="tt-minutes" placeholder="minuti" />
+        <button data-action="addTransport">Dodaj vreme</button>
+        <hr />
+        <h4>Životni ciklus</h4>
+        <button data-action="publishTour">Objavi</button>
+        <button data-action="archiveTour">Arhiviraj</button>
+        <button data-action="activateTour">Reaktiviraj</button>
+      </div>
+      <pre id="tours-guide-out" class="output"></pre>
+    </section>
+
+    <section id="tours-tourist" class="tab">
+      <h2>Ture — turista</h2>
+      <div class="card">
+        <button data-action="listPublished">Objavljene ture (gRPC)</button>
+      </div>
+      <pre id="tours-tourist-out" class="output"></pre>
+    </section>
+
+    <section id="purchase" class="tab">
+      <h2>Kupovina</h2>
+      <div class="card">
+        <h3>Korpa</h3>
+        <input id="cart-tourId" placeholder="ID ture" />
+        <button data-action="addToCart">Dodaj u korpu</button>
+        <button data-action="removeFromCart">Ukloni iz korpe</button>
+        <button data-action="getCart">Prikaži korpu</button>
+      </div>
+      <div class="card">
+        <button data-action="checkout">Checkout (gRPC)</button>
+        <button data-action="listPurchases">Moje kupovine (gRPC)</button>
+      </div>
+      <div class="card">
+        <h3>Otkrivanje kupljene ture</h3>
+        <input id="reveal-tourId" placeholder="ID kupljene ture" />
+        <button data-action="revealTour">Prikaži pune tačke</button>
+      </div>
+      <pre id="purchase-out" class="output"></pre>
+    </section>
+
+    <section id="followers" class="tab">
+      <h2>Praćenje korisnika</h2>
+      <div class="card">
+        <input id="follow-id" placeholder="ID korisnika koga pratiš" />
+        <button data-action="follow">Zaprati</button>
+        <button data-action="unfollow">Otprati</button>
+      </div>
+      <div class="card">
+        <button data-action="listFollowing">Koga pratim</button>
+        <button data-action="recommendations">Preporuke</button>
+      </div>
+      <pre id="followers-out" class="output"></pre>
+    </section>
+
+    <section id="blog" class="tab">
+      <h2>Blog</h2>
+      <div class="card">
+        <button data-action="listBlogs">Svi blogovi</button>
+      </div>
+      <div class="card">
+        <h3>Kreiraj blog</h3>
+        <input id="blog-title" placeholder="naslov" />
+        <input id="blog-desc" placeholder="opis (markdown)" />
+        <button data-action="createBlog">Objavi blog</button>
+      </div>
+      <div class="card">
+        <h3>Rad na blogu (unesi ID bloga)</h3>
+        <input id="blog-id" placeholder="ID bloga" />
+        <button data-action="getBlog">Detalji</button>
+        <button data-action="voteBlog">Lajk / unlajk</button>
+        <input id="comment-text" placeholder="tekst komentara" />
+        <button data-action="commentBlog">Komentar</button>
+      </div>
+      <pre id="blog-out" class="output"></pre>
+    </section>
+
+    <section id="admin" class="tab">
+      <h2>Admin</h2>
+      <div class="card">
+        <button data-action="listUsers">Svi korisnici</button>
+      </div>
+      <div class="card">
+        <input id="block-id" placeholder="ID korisnika" />
+        <button data-action="blockUser">Blokiraj korisnika</button>
+      </div>
+      <pre id="admin-out" class="output"></pre>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
