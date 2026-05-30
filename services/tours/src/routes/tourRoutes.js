@@ -3,6 +3,7 @@ const express = require("express");
 const tourController = require("../controllers/tourController");
 const keyPointController = require("../controllers/keyPointController");
 const reviewController = require("../controllers/reviewController");
+const tourExecutionController = require("../controllers/tourExecutionController");
 const authenticate = require("../middleware/authenticate");
 const requireGuide = require("../middleware/requireGuide");
 const requireTourist = require("../middleware/requireTourist");
@@ -26,5 +27,7 @@ router.delete("/:id/keypoints/:keyPointId", authenticate, requireGuide, keyPoint
 
 router.post("/:id/reviews", authenticate, requireTourist, reviewController.createReview);
 router.get("/:id/reviews", authenticate, reviewController.getReviews);
+
+router.post("/:id/execution", authenticate, requireTourist, tourExecutionController.startExecution);
 
 module.exports = router;

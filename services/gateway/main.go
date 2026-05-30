@@ -56,6 +56,8 @@ type toursRPCHandler struct {
 }
 
 var publishTourPath = regexp.MustCompile(`^/api/tours/([^/]+)/publish$`)
+var createReviewPath = regexp.MustCompile(`^/api/tours/([^/]+)/reviews$`)
+var startExecutionPath = regexp.MustCompile(`^/api/tours/([^/]+)/execution$`)
 
 func writeJSON(w http.ResponseWriter, statusCode int, payload map[string]interface{}) {
 	w.Header().Set("Content-Type", "application/json")
@@ -95,9 +97,16 @@ func grpcHTTPStatus(err error) int {
 
 func (h toursRPCHandler) handle(w http.ResponseWriter, r *http.Request) bool {
 	if r.Method == http.MethodPost {
-		matches := publishTourPath.FindStringSubmatch(r.URL.Path)
-		if len(matches) == 2 {
+		if matches := publishTourPath.FindStringSubmatch(r.URL.Path); len(matches) == 2 {
 			h.publishTour(w, r, matches[1])
+			return true
+		}
+		if matches := createReviewPath.FindStringSubmatch(r.URL.Path); len(matches) == 2 {
+			h.createReview(w, r, matches[1])
+			return true
+		}
+		if matches := startExecutionPath.FindStringSubmatch(r.URL.Path); len(matches) == 2 {
+			h.startExecution(w, r, matches[1])
 			return true
 		}
 	}
@@ -156,6 +165,84 @@ func (h toursRPCHandler) listPublishedTours(w http.ResponseWriter, r *http.Reque
 	}
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{"tours": tours})
+}
+
+func (h toursRPCHandler) createReview(w http.ResponseWriter, r *http.Request, tourID string) {
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	var body struct {
+		Rating    int32    `json:"rating"`
+		Comment   string   `json:"comment"`
+		VisitedAt string   `json:"visitedAt"`
+		Images    []string `json:"images"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]interface{}{"message": "Invalid request body."})
+		return
+	}
+
+	response, err := h.client.CreateReview(ctx, &tourspb.CreateReviewRequest{
+		TourId:        tourID,
+		Authorization: r.Header.Get("Authorization"),
+		Rating:        body.Rating,
+		Comment:       body.Comment,
+		VisitedAt:     body.VisitedAt,
+		Images:        body.Images,
+	})
+	if err != nil {
+		st, _ := status.FromError(err)
+		writeJSON(w, grpcHTTPStatus(err), map[string]interface{}{"message": st.Message()})
+		return
+	}
+
+	var review interface{}
+	if err := json.Unmarshal([]byte(response.GetReviewJson()), &review); err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]interface{}{"message": "Invalid tours RPC response."})
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, map[string]interface{}{
+		"message": "Review created successfully.",
+		"review":  review,
+	})
+}
+
+func (h toursRPCHandler) startExecution(w http.ResponseWriter, r *http.Request, tourID string) {
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	var body struct {
+		Latitude  float64 `json:"latitude"`
+		Longitude float64 `json:"longitude"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]interface{}{"message": "Invalid request body."})
+		return
+	}
+
+	response, err := h.client.StartExecution(ctx, &tourspb.StartExecutionRequest{
+		TourId:        tourID,
+		Authorization: r.Header.Get("Authorization"),
+		Latitude:      body.Latitude,
+		Longitude:     body.Longitude,
+	})
+	if err != nil {
+		st, _ := status.FromError(err)
+		writeJSON(w, grpcHTTPStatus(err), map[string]interface{}{"message": st.Message()})
+		return
+	}
+
+	var execution interface{}
+	if err := json.Unmarshal([]byte(response.GetExecutionJson()), &execution); err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]interface{}{"message": "Invalid tours RPC response."})
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, map[string]interface{}{
+		"message":   "Tour execution started.",
+		"execution": execution,
+	})
 }
 
 type purchaseRPCHandler struct {
@@ -252,10 +339,12 @@ func main() {
 		{"/auth/", newProxy("http://authorization-service:3001")},
 		{"/api/blogs", newProxy("http://blogs-service:8082")},
 		{"/api/tours", newProxy("http://tours-service:8083")},
+		{"/api/executions", newProxy("http://tours-service:8083")},
 		{"/api/positions", newProxy("http://tours-service:8083")},
 		{"/simulator", newProxy("http://tours-service:8083")},
 		{"/guide", newProxy("http://tours-service:8083")},
 		{"/lifecycle", newProxy("http://tours-service:8083")},
+		{"/execution", newProxy("http://tours-service:8083")},
 		{"/api/cart", newProxy("http://purchase-service:8084")},
 		{"/api/purchases", newProxy("http://purchase-service:8084")},
 		{"/follows", newProxy("http://follower-service:8000")},
