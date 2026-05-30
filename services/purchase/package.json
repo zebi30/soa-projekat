@@ -1,0 +1,31 @@
+{
+  "name": "purchase-service",
+  "version": "1.0.0",
+  "description": "KT3 purchase microservice for the SOA tourism project",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js"
+  },
+  "keywords": [
+    "soa",
+    "microservice",
+    "express",
+    "purchase",
+    "mongodb",
+    "grpc"
+  ],
+  "license": "ISC",
+  "dependencies": {
+    "@grpc/grpc-js": "^1.12.2",
+    "@grpc/proto-loader": "^0.7.13",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.8.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
+}

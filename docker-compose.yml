@@ -103,6 +103,7 @@ services:
       GRPC_PORT: 9093
       MONGO_URI: mongodb://tour-mongo:27017/tours_db
       JWT_SECRET: change-me
+      INTERNAL_API_KEY: internal-secret-key
     ports:
       - "8083:8083"
   follower-neo4j:
@@ -136,6 +137,38 @@ services:
     ports:
       - "8000:8000"
 
+  purchase-mongo:
+    image: mongo:7
+    container_name: purchase-mongo
+    environment:
+      MONGO_INITDB_DATABASE: purchase_db
+    ports:
+      - "27018:27017"
+    volumes:
+      - purchase-mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  purchase-service:
+    build:
+      context: ./services/purchase
+    container_name: purchase-service
+    depends_on:
+      purchase-mongo:
+        condition: service_healthy
+    environment:
+      PORT: 8084
+      GRPC_PORT: 9094
+      MONGO_URI: mongodb://purchase-mongo:27017/purchase_db
+      JWT_SECRET: change-me
+      TOURS_INTERNAL_URL: http://tours-service:8083
+      INTERNAL_API_KEY: internal-secret-key
+    ports:
+      - "8084:8084"
+
   gateway:
     build:
       context: ./services/gateway
@@ -145,8 +178,10 @@ services:
       - blogs-service
       - tours-service
       - follower-service
+      - purchase-service
     environment:
       TOURS_GRPC_ADDR: tours-service:9093
+      PURCHASE_GRPC_ADDR: purchase-service:9094
     ports:
       - "8080:80"
 
@@ -155,3 +190,4 @@ volumes:
   blogs-postgres-data:
   tour-mongo-data:
   follower-neo4j-data:
+  purchase-mongo-data:
