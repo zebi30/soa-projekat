@@ -12,6 +12,41 @@ function isValidObjectId(id) {
   return mongoose.Types.ObjectId.isValid(id);
 }
 
+function toRadians(degrees) {
+  return (degrees * Math.PI) / 180;
+}
+
+function haversineKm(first, second) {
+  const earthRadiusKm = 6371;
+  const dLat = toRadians(second.latitude - first.latitude);
+  const dLon = toRadians(second.longitude - first.longitude);
+  const lat1 = toRadians(first.latitude);
+  const lat2 = toRadians(second.latitude);
+
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+
+  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function calculateLengthKm(keyPoints) {
+  if (!Array.isArray(keyPoints) || keyPoints.length < 2) {
+    return 0;
+  }
+
+  let length = 0;
+  for (let i = 1; i < keyPoints.length; i += 1) {
+    length += haversineKm(keyPoints[i - 1], keyPoints[i]);
+  }
+
+  return Math.round(length * 100) / 100;
+}
+
+function recalculateTourLength(tour) {
+  tour.lengthKm = calculateLengthKm(tour.keyPoints);
+}
+
 function validateTourInput({ name, description, difficulty, tags }) {
   const trimmedName = typeof name === "string" ? name.trim() : "";
   const trimmedDescription = typeof description === "string" ? description.trim() : "";
@@ -41,6 +76,23 @@ function validateTourInput({ name, description, difficulty, tags }) {
     description: trimmedDescription,
     difficulty: normalizedDifficulty,
     tags: normalizedTags
+  };
+}
+
+function validateTransportTimeInput({ transport, minutes }) {
+  const normalizedTransport = typeof transport === "string" ? transport.trim().toLowerCase() : "";
+  if (!["walking", "bicycle", "car"].includes(normalizedTransport)) {
+    throw createHttpError(400, "Transport must be one of: walking, bicycle, car.");
+  }
+
+  const normalizedMinutes = Number(minutes);
+  if (!Number.isInteger(normalizedMinutes) || normalizedMinutes < 1) {
+    throw createHttpError(400, "Minutes must be a positive integer.");
+  }
+
+  return {
+    transport: normalizedTransport,
+    minutes: normalizedMinutes
   };
 }
 
@@ -122,6 +174,7 @@ async function addKeyPoint(authorId, tourId, input) {
   const tour = await getOwnedTour(authorId, tourId);
 
   tour.keyPoints.push(data);
+  recalculateTourLength(tour);
   await tour.save();
 
   const added = tour.keyPoints[tour.keyPoints.length - 1];
@@ -221,6 +274,7 @@ async function updateKeyPoint(authorId, tourId, keyPointId, input) {
   }
 
   Object.assign(keyPoint, patch);
+  recalculateTourLength(tour);
   await tour.save();
 
   return serializeKeyPoint(keyPoint);
@@ -239,7 +293,117 @@ async function deleteKeyPoint(authorId, tourId, keyPointId) {
   }
 
   keyPoint.deleteOne();
+  recalculateTourLength(tour);
   await tour.save();
+}
+
+function serializeTransportTime(transportTime) {
+  return {
+    id: transportTime._id,
+    transport: transportTime.transport,
+    minutes: transportTime.minutes,
+    createdAt: transportTime.createdAt,
+    updatedAt: transportTime.updatedAt
+  };
+}
+
+async function addTransportTime(authorId, tourId, input) {
+  const data = validateTransportTimeInput(input);
+  const tour = await getOwnedTour(authorId, tourId);
+
+  tour.transportTimes.push(data);
+  await tour.save();
+
+  return serializeTransportTime(tour.transportTimes[tour.transportTimes.length - 1]);
+}
+
+async function listTransportTimes(authorId, tourId) {
+  const tour = await getOwnedTour(authorId, tourId);
+  return tour.toJSON().transportTimes;
+}
+
+function validatePublishRequirements(tour) {
+  if (tour.status !== "draft") {
+    throw createHttpError(409, "Only draft tours can be published.");
+  }
+
+  if (!tour.name || !tour.description || !tour.difficulty || !Array.isArray(tour.tags) || tour.tags.length === 0) {
+    throw createHttpError(400, "Tour must have name, description, difficulty, and at least one tag.");
+  }
+
+  if (!Array.isArray(tour.keyPoints) || tour.keyPoints.length < 2) {
+    throw createHttpError(400, "Tour must have at least two key points.");
+  }
+
+  if (!Array.isArray(tour.transportTimes) || tour.transportTimes.length < 1) {
+    throw createHttpError(400, "Tour must have at least one transport time.");
+  }
+}
+
+async function publishTour(authorId, tourId) {
+  const tour = await getOwnedTour(authorId, tourId);
+  validatePublishRequirements(tour);
+
+  tour.status = "published";
+  tour.publishedAt = new Date();
+  await tour.save();
+
+  return tour.toJSON();
+}
+
+async function archiveTour(authorId, tourId) {
+  const tour = await getOwnedTour(authorId, tourId);
+
+  if (tour.status !== "published") {
+    throw createHttpError(409, "Only published tours can be archived.");
+  }
+
+  tour.status = "archived";
+  tour.archivedAt = new Date();
+  await tour.save();
+
+  return tour.toJSON();
+}
+
+async function activateTour(authorId, tourId) {
+  const tour = await getOwnedTour(authorId, tourId);
+
+  if (tour.status !== "archived") {
+    throw createHttpError(409, "Only archived tours can be activated.");
+  }
+
+  tour.status = "published";
+  await tour.save();
+
+  return tour.toJSON();
+}
+
+function toPublishedTourPreview(tour) {
+  const serialized = tour.toJSON ? tour.toJSON() : tour;
+  const firstKeyPoint = Array.isArray(serialized.keyPoints) && serialized.keyPoints.length > 0
+    ? serialized.keyPoints[0]
+    : null;
+
+  return {
+    id: serialized.id,
+    name: serialized.name,
+    description: serialized.description,
+    difficulty: serialized.difficulty,
+    tags: serialized.tags,
+    status: serialized.status,
+    price: serialized.price,
+    lengthKm: serialized.lengthKm,
+    transportTimes: serialized.transportTimes,
+    firstKeyPoint,
+    publishedAt: serialized.publishedAt,
+    createdAt: serialized.createdAt,
+    updatedAt: serialized.updatedAt
+  };
+}
+
+async function listPublishedTours() {
+  const tours = await Tour.find({ status: "published" }).sort({ publishedAt: -1, createdAt: -1 });
+  return tours.map(toPublishedTourPreview);
 }
 
 module.exports = {
@@ -249,5 +413,11 @@ module.exports = {
   addKeyPoint,
   listKeyPoints,
   updateKeyPoint,
-  deleteKeyPoint
+  deleteKeyPoint,
+  addTransportTime,
+  listTransportTimes,
+  publishTour,
+  archiveTour,
+  activateTour,
+  listPublishedTours
 };

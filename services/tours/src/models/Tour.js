@@ -33,6 +33,22 @@ const KeyPointSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+const TransportTimeSchema = new mongoose.Schema(
+  {
+    transport: {
+      type: String,
+      required: true,
+      enum: ["walking", "bicycle", "car"]
+    },
+    minutes: {
+      type: Number,
+      required: true,
+      min: 1
+    }
+  },
+  { timestamps: true }
+);
+
 const TourSchema = new mongoose.Schema(
   {
     name: {
@@ -64,6 +80,19 @@ const TourSchema = new mongoose.Schema(
       default: 0,
       min: 0
     },
+    publishedAt: {
+      type: Date,
+      default: null
+    },
+    archivedAt: {
+      type: Date,
+      default: null
+    },
+    lengthKm: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
     authorId: {
       type: String,
       required: true,
@@ -71,6 +100,10 @@ const TourSchema = new mongoose.Schema(
     },
     keyPoints: {
       type: [KeyPointSchema],
+      default: []
+    },
+    transportTimes: {
+      type: [TransportTimeSchema],
       default: []
     }
   },
@@ -86,6 +119,12 @@ TourSchema.set("toJSON", {
     if (Array.isArray(ret.keyPoints)) {
       ret.keyPoints = ret.keyPoints.map((kp) => {
         const { _id, ...rest } = kp;
+        return { id: _id, ...rest };
+      });
+    }
+    if (Array.isArray(ret.transportTimes)) {
+      ret.transportTimes = ret.transportTimes.map((transportTime) => {
+        const { _id, ...rest } = transportTime;
         return { id: _id, ...rest };
       });
     }
