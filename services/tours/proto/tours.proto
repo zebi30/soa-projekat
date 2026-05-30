@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package tours;
+
+service ToursService {
+  rpc PublishTour(PublishTourRequest) returns (TourResponse);
+  rpc ListPublishedTours(ListPublishedToursRequest) returns (PublishedToursResponse);
+}
+
+message PublishTourRequest {
+  string tour_id = 1;
+  string authorization = 2;
+}
+
+message ListPublishedToursRequest {
+  string authorization = 1;
+}
+
+message TourResponse {
+  string tour_json = 1;
+}
+
+message PublishedToursResponse {
+  string tours_json = 1;
+}
