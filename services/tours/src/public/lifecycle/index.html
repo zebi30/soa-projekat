@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tour lifecycle test</title>
+    <style>
+      * { box-sizing: border-box; }
+      :root {
+        color-scheme: light;
+        --ink: #17202a;
+        --muted: #667085;
+        --line: #d7dde5;
+        --panel: #ffffff;
+        --page: #f5f7fa;
+        --accent: #0f766e;
+        --accent-strong: #115e59;
+        --danger: #b42318;
+        --ok: #067647;
+      }
+      html, body {
+        margin: 0;
+        min-height: 100%;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: var(--ink);
+        background: var(--page);
+      }
+      header {
+        padding: 18px 24px;
+        background: #17202a;
+        color: #fff;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+      h1, h2, h3, p { margin-top: 0; }
+      h1 { margin-bottom: 4px; font-size: 22px; letter-spacing: 0; }
+      header p { margin-bottom: 0; color: #cbd5e1; font-size: 14px; }
+      main {
+        display: grid;
+        grid-template-columns: minmax(300px, 420px) 1fr;
+        gap: 16px;
+        padding: 16px;
+      }
+      section, aside {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+      }
+      aside { padding: 16px; align-self: start; }
+      .workspace {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+      .panel { padding: 16px; }
+      .panel h2, aside h2 { font-size: 16px; margin-bottom: 10px; }
+      .panel h3 { font-size: 13px; margin: 14px 0 8px; color: var(--muted); text-transform: uppercase; }
+      label {
+        display: block;
+        margin: 10px 0 4px;
+        color: #344054;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      input, select, textarea {
+        width: 100%;
+        border: 1px solid #c8d0db;
+        border-radius: 6px;
+        padding: 8px 10px;
+        font: inherit;
+        font-size: 14px;
+        background: #fff;
+        color: var(--ink);
+      }
+      textarea { min-height: 76px; resize: vertical; }
+      button {
+        border: 0;
+        border-radius: 6px;
+        background: var(--accent);
+        color: #fff;
+        padding: 8px 12px;
+        font: inherit;
+        font-size: 14px;
+        cursor: pointer;
+      }
+      button:hover { background: var(--accent-strong); }
+      button.secondary { background: #344054; }
+      button.danger { background: var(--danger); }
+      button.ghost {
+        background: #eef2f6;
+        color: #17202a;
+        border: 1px solid #d0d5dd;
+      }
+      button:disabled { opacity: 0.55; cursor: not-allowed; }
+      .row {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 12px;
+      }
+      .flow {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: grid;
+        gap: 10px;
+      }
+      .flow li {
+        border-left: 4px solid #c8d0db;
+        padding: 8px 10px;
+        background: #f8fafc;
+        border-radius: 0 6px 6px 0;
+        font-size: 14px;
+      }
+      .flow li.done { border-color: var(--ok); }
+      .flow li.active { border-color: var(--accent); background: #ecfdf3; }
+      .hint { color: var(--muted); font-size: 13px; margin: 6px 0 0; }
+      .token {
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        font-size: 12px;
+        overflow-wrap: anywhere;
+        background: #f2f4f7;
+        border-radius: 6px;
+        padding: 8px;
+        min-height: 34px;
+      }
+      .result {
+        min-height: 280px;
+        max-height: 560px;
+        overflow: auto;
+        background: #101828;
+        color: #e4e7ec;
+        border-radius: 8px;
+        padding: 12px;
+        font: 12px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace;
+        white-space: pre-wrap;
+      }
+      .summary {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+      .metric {
+        background: #f8fafc;
+        border: 1px solid #e4e7ec;
+        border-radius: 6px;
+        padding: 10px;
+      }
+      .metric span { display: block; color: var(--muted); font-size: 12px; }
+      .metric strong { display: block; margin-top: 2px; font-size: 16px; }
+      .full { grid-column: 1 / -1; }
+      @media (max-width: 980px) {
+        main, .workspace { grid-template-columns: 1fr; }
+        .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div>
+        <h1>Tour lifecycle test</h1>
+        <p>Draft creation, publish validation, gRPC-backed publish/list, and archive/activate checks.</p>
+      </div>
+      <button id="reset" class="ghost">Reset page state</button>
+    </header>
+
+    <main>
+      <aside>
+        <h2>Flow</h2>
+        <ol class="flow" id="flow">
+          <li data-step="auth">Create or log in as a guide and tourist.</li>
+          <li data-step="draft">Create a guide-owned draft tour with at least one tag.</li>
+          <li data-step="keypoints">Add two key points so lengthKm is calculated.</li>
+          <li data-step="transport">Add at least one transport time.</li>
+          <li data-step="publish">Publish the draft through POST /api/tours/:id/publish.</li>
+          <li data-step="tourist">List published tours as a tourist through GET /api/tours/published.</li>
+          <li data-step="state">Archive, reactivate, and re-check visibility.</li>
+        </ol>
+
+        <h2 style="margin-top: 18px;">Current tour</h2>
+        <div class="summary">
+          <div class="metric">
+            <span>Status</span>
+            <strong id="metric-status">none</strong>
+          </div>
+          <div class="metric">
+            <span>Key points</span>
+            <strong id="metric-kp">0</strong>
+          </div>
+          <div class="metric">
+            <span>Transport</span>
+            <strong id="metric-tt">0</strong>
+          </div>
+          <div class="metric">
+            <span>Length</span>
+            <strong id="metric-length">0 km</strong>
+          </div>
+        </div>
+        <p class="hint">Open this page through the gateway at /lifecycle to test the gRPC bridge for publish and published listing.</p>
+      </aside>
+
+      <div class="workspace">
+        <section class="panel">
+          <h2>1. Accounts</h2>
+          <div class="row">
+            <div>
+              <label for="guide-email">Guide email</label>
+              <input id="guide-email" value="guide.lifecycle@soa.local" />
+            </div>
+            <div>
+              <label for="tourist-email">Tourist email</label>
+              <input id="tourist-email" value="tourist.lifecycle@soa.local" />
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label for="guide-password">Guide password</label>
+              <input id="guide-password" type="password" value="test12345" />
+            </div>
+            <div>
+              <label for="tourist-password">Tourist password</label>
+              <input id="tourist-password" type="password" value="test12345" />
+            </div>
+          </div>
+          <div class="actions">
+            <button id="register-users">Register test users</button>
+            <button id="login-users" class="secondary">Log in users</button>
+          </div>
+          <h3>Guide token</h3>
+          <div id="guide-token" class="token"></div>
+          <h3>Tourist token</h3>
+          <div id="tourist-token" class="token"></div>
+        </section>
+
+        <section class="panel">
+          <h2>2. Draft tour</h2>
+          <label for="tour-name">Name</label>
+          <input id="tour-name" value="Belgrade lifecycle walk" />
+          <label for="tour-description">Description</label>
+          <textarea id="tour-description">A short route used to verify lifecycle state changes.</textarea>
+          <div class="row">
+            <div>
+              <label for="tour-difficulty">Difficulty</label>
+              <select id="tour-difficulty">
+                <option value="easy">easy</option>
+                <option value="medium">medium</option>
+                <option value="hard">hard</option>
+              </select>
+            </div>
+            <div>
+              <label for="tour-tags">Tags</label>
+              <input id="tour-tags" value="city, test" />
+            </div>
+          </div>
+          <div class="actions">
+            <button id="create-tour">Create draft</button>
+            <button id="load-mine" class="secondary">Load my tours</button>
+          </div>
+          <label for="tour-select">Selected tour</label>
+          <select id="tour-select"></select>
+        </section>
+
+        <section class="panel">
+          <h2>3. Requirements</h2>
+          <h3>Key point</h3>
+          <div class="row">
+            <div>
+              <label for="kp-name">Name</label>
+              <input id="kp-name" value="Republic Square" />
+            </div>
+            <div>
+              <label for="kp-description">Description</label>
+              <input id="kp-description" value="Starting point" />
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label for="kp-lat">Latitude</label>
+              <input id="kp-lat" type="number" step="any" value="44.8163" />
+            </div>
+            <div>
+              <label for="kp-lon">Longitude</label>
+              <input id="kp-lon" type="number" step="any" value="20.4600" />
+            </div>
+          </div>
+          <div class="actions">
+            <button id="add-kp">Add key point</button>
+            <button id="add-sample-kps" class="secondary">Add two sample points</button>
+          </div>
+
+          <h3>Transport time</h3>
+          <div class="row">
+            <div>
+              <label for="transport">Transport</label>
+              <select id="transport">
+                <option value="walking">walking</option>
+                <option value="bicycle">bicycle</option>
+                <option value="car">car</option>
+              </select>
+            </div>
+            <div>
+              <label for="minutes">Minutes</label>
+              <input id="minutes" type="number" min="1" step="1" value="35" />
+            </div>
+          </div>
+          <div class="actions">
+            <button id="add-transport">Add transport time</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>4. Lifecycle actions</h2>
+          <div class="actions">
+            <button id="publish">Publish</button>
+            <button id="list-published" class="secondary">List published as tourist</button>
+            <button id="archive" class="danger">Archive</button>
+            <button id="activate" class="secondary">Activate</button>
+          </div>
+          <p class="hint">Publish and tourist published listing are the gateway routes currently handled through gRPC.</p>
+        </section>
+
+        <section class="panel full">
+          <h2>Result log</h2>
+          <pre id="log" class="result">Ready.</pre>
+        </section>
+      </div>
+    </main>
+
+    <script>
+      const state = {
+        guideToken: localStorage.getItem("lifecycle_guide_token") || "",
+        touristToken: localStorage.getItem("lifecycle_tourist_token") || "",
+        currentTour: JSON.parse(localStorage.getItem("lifecycle_current_tour") || "null")
+      };
+
+      const $ = (id) => document.getElementById(id);
+      const logEl = $("log");
+
+      function endpoint(path) {
+        return path;
+      }
+
+      function writeLog(title, payload) {
+        const time = new Date().toLocaleTimeString();
+        logEl.textContent = `[${time}] ${title}\n` + JSON.stringify(payload, null, 2);
+      }
+
+      function authHeaders(token) {
+        return {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        };
+      }
+
+      async function request(path, options = {}) {
+        const response = await fetch(endpoint(path), options);
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(body.message || `HTTP ${response.status}`);
+        }
+        return body;
+      }
+
+      async function register(email, password, role) {
+        const username = email.split("@")[0].replace(/[^a-z0-9_]/gi, "_");
+        return request("/auth/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, email, password, role })
+        });
+      }
+
+      async function login(email, password) {
+        return request("/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password })
+        });
+      }
+
+      function saveState() {
+        localStorage.setItem("lifecycle_guide_token", state.guideToken || "");
+        localStorage.setItem("lifecycle_tourist_token", state.touristToken || "");
+        localStorage.setItem("lifecycle_current_tour", JSON.stringify(state.currentTour || null));
+      }
+
+      function renderTokens() {
+        $("guide-token").textContent = state.guideToken || "Not logged in.";
+        $("tourist-token").textContent = state.touristToken || "Not logged in.";
+      }
+
+      function renderTour() {
+        const tour = state.currentTour;
+        $("metric-status").textContent = tour ? tour.status : "none";
+        $("metric-kp").textContent = tour && Array.isArray(tour.keyPoints) ? tour.keyPoints.length : "0";
+        $("metric-tt").textContent = tour && Array.isArray(tour.transportTimes) ? tour.transportTimes.length : "0";
+        $("metric-length").textContent = tour ? `${tour.lengthKm || 0} km` : "0 km";
+
+        const done = {
+          auth: Boolean(state.guideToken && state.touristToken),
+          draft: Boolean(tour),
+          keypoints: Boolean(tour && tour.keyPoints && tour.keyPoints.length >= 2),
+          transport: Boolean(tour && tour.transportTimes && tour.transportTimes.length >= 1),
+          publish: Boolean(tour && tour.status === "published"),
+          tourist: false,
+          state: Boolean(tour && tour.archivedAt)
+        };
+
+        document.querySelectorAll("#flow li").forEach((item) => {
+          item.classList.toggle("done", Boolean(done[item.dataset.step]));
+          item.classList.remove("active");
+        });
+
+        const firstOpen = Array.from(document.querySelectorAll("#flow li")).find((item) => !done[item.dataset.step]);
+        if (firstOpen) firstOpen.classList.add("active");
+      }
+
+      function setCurrentTour(tour) {
+        state.currentTour = tour;
+        saveState();
+        renderTour();
+      }
+
+      function requireGuideToken() {
+        if (!state.guideToken) throw new Error("Log in as guide first.");
+        return state.guideToken;
+      }
+
+      function requireTouristToken() {
+        if (!state.touristToken) throw new Error("Log in as tourist first.");
+        return state.touristToken;
+      }
+
+      function requireTourId() {
+        if (!state.currentTour || !state.currentTour.id) throw new Error("Create or select a tour first.");
+        return state.currentTour.id;
+      }
+
+      async function refreshSelectedTour() {
+        const tourId = requireTourId();
+        const data = await request(`/api/tours/${tourId}`, { headers: authHeaders(requireGuideToken()) });
+        setCurrentTour(data.tour);
+        return data.tour;
+      }
+
+      async function loadMine() {
+        const data = await request("/api/tours/mine", { headers: authHeaders(requireGuideToken()) });
+        const select = $("tour-select");
+        select.innerHTML = "";
+        for (const tour of data.tours) {
+          const option = document.createElement("option");
+          option.value = tour.id;
+          option.textContent = `${tour.name} | ${tour.status} | ${tour.keyPoints.length} KP`;
+          option.dataset.tour = JSON.stringify(tour);
+          select.appendChild(option);
+        }
+        if (data.tours.length) {
+          setCurrentTour(data.tours[0]);
+          select.value = data.tours[0].id;
+        }
+        writeLog("Loaded guide tours", data);
+      }
+
+      $("register-users").addEventListener("click", async () => {
+        try {
+          const guideEmail = $("guide-email").value.trim();
+          const touristEmail = $("tourist-email").value.trim();
+          const guidePassword = $("guide-password").value;
+          const touristPassword = $("tourist-password").value;
+          const results = await Promise.allSettled([
+            register(guideEmail, guidePassword, "guide"),
+            register(touristEmail, touristPassword, "tourist")
+          ]);
+          writeLog("Register results", results.map((result) => result.status === "fulfilled" ? result.value : result.reason.message));
+        } catch (error) {
+          writeLog("Register failed", { message: error.message });
+        }
+      });
+
+      $("login-users").addEventListener("click", async () => {
+        try {
+          const guide = await login($("guide-email").value.trim(), $("guide-password").value);
+          const tourist = await login($("tourist-email").value.trim(), $("tourist-password").value);
+          state.guideToken = guide.token;
+          state.touristToken = tourist.token;
+          saveState();
+          renderTokens();
+          renderTour();
+          writeLog("Logged in", { guide: guide.user, tourist: tourist.user });
+        } catch (error) {
+          writeLog("Login failed", { message: error.message });
+        }
+      });
+
+      $("create-tour").addEventListener("click", async () => {
+        try {
+          const data = await request("/api/tours", {
+            method: "POST",
+            headers: authHeaders(requireGuideToken()),
+            body: JSON.stringify({
+              name: $("tour-name").value.trim(),
+              description: $("tour-description").value.trim(),
+              difficulty: $("tour-difficulty").value,
+              tags: $("tour-tags").value.split(",").map((tag) => tag.trim()).filter(Boolean)
+            })
+          });
+          setCurrentTour(data.tour);
+          await loadMine();
+          writeLog("Created draft tour", data);
+        } catch (error) {
+          writeLog("Create tour failed", { message: error.message });
+        }
+      });
+
+      $("load-mine").addEventListener("click", async () => {
+        try {
+          await loadMine();
+        } catch (error) {
+          writeLog("Load guide tours failed", { message: error.message });
+        }
+      });
+
+      $("tour-select").addEventListener("change", async (event) => {
+        const option = event.target.selectedOptions[0];
+        if (!option) return;
+        setCurrentTour(JSON.parse(option.dataset.tour));
+        await refreshSelectedTour().catch((error) => writeLog("Refresh selected tour failed", { message: error.message }));
+      });
+
+      $("add-kp").addEventListener("click", async () => {
+        try {
+          const data = await request(`/api/tours/${requireTourId()}/keypoints`, {
+            method: "POST",
+            headers: authHeaders(requireGuideToken()),
+            body: JSON.stringify({
+              name: $("kp-name").value.trim(),
+              description: $("kp-description").value.trim(),
+              latitude: Number($("kp-lat").value),
+              longitude: Number($("kp-lon").value)
+            })
+          });
+          const tour = await refreshSelectedTour();
+          writeLog("Added key point", { keyPoint: data.keyPoint, tour });
+        } catch (error) {
+          writeLog("Add key point failed", { message: error.message });
+        }
+      });
+
+      $("add-sample-kps").addEventListener("click", async () => {
+        try {
+          const tourId = requireTourId();
+          const samples = [
+            { name: "Republic Square", description: "Starting point", latitude: 44.8163, longitude: 20.46 },
+            { name: "Kalemegdan", description: "Finish point", latitude: 44.8232, longitude: 20.4509 }
+          ];
+          const added = [];
+          for (const sample of samples) {
+            const data = await request(`/api/tours/${tourId}/keypoints`, {
+              method: "POST",
+              headers: authHeaders(requireGuideToken()),
+              body: JSON.stringify(sample)
+            });
+            added.push(data.keyPoint);
+          }
+          const tour = await refreshSelectedTour();
+          writeLog("Added sample key points", { added, tour });
+        } catch (error) {
+          writeLog("Add sample key points failed", { message: error.message });
+        }
+      });
+
+      $("add-transport").addEventListener("click", async () => {
+        try {
+          const data = await request(`/api/tours/${requireTourId()}/transport-times`, {
+            method: "POST",
+            headers: authHeaders(requireGuideToken()),
+            body: JSON.stringify({
+              transport: $("transport").value,
+              minutes: Number($("minutes").value)
+            })
+          });
+          const tour = await refreshSelectedTour();
+          writeLog("Added transport time", { transportTime: data.transportTime, tour });
+        } catch (error) {
+          writeLog("Add transport time failed", { message: error.message });
+        }
+      });
+
+      $("publish").addEventListener("click", async () => {
+        try {
+          const data = await request(`/api/tours/${requireTourId()}/publish`, {
+            method: "POST",
+            headers: authHeaders(requireGuideToken())
+          });
+          setCurrentTour(data.tour);
+          writeLog("Published tour", data);
+        } catch (error) {
+          writeLog("Publish failed", { message: error.message });
+        }
+      });
+
+      $("list-published").addEventListener("click", async () => {
+        try {
+          const data = await request("/api/tours/published", {
+            headers: authHeaders(requireTouristToken())
+          });
+          document.querySelector('[data-step="tourist"]').classList.add("done");
+          writeLog("Published tours visible to tourist", data);
+        } catch (error) {
+          writeLog("List published failed", { message: error.message });
+        }
+      });
+
+      $("archive").addEventListener("click", async () => {
+        try {
+          const data = await request(`/api/tours/${requireTourId()}/archive`, {
+            method: "POST",
+            headers: authHeaders(requireGuideToken())
+          });
+          setCurrentTour(data.tour);
+          writeLog("Archived tour", data);
+        } catch (error) {
+          writeLog("Archive failed", { message: error.message });
+        }
+      });
+
+      $("activate").addEventListener("click", async () => {
+        try {
+          const data = await request(`/api/tours/${requireTourId()}/activate`, {
+            method: "POST",
+            headers: authHeaders(requireGuideToken())
+          });
+          setCurrentTour(data.tour);
+          writeLog("Activated tour", data);
+        } catch (error) {
+          writeLog("Activate failed", { message: error.message });
+        }
+      });
+
+      $("reset").addEventListener("click", () => {
+        localStorage.removeItem("lifecycle_guide_token");
+        localStorage.removeItem("lifecycle_tourist_token");
+        localStorage.removeItem("lifecycle_current_tour");
+        state.guideToken = "";
+        state.touristToken = "";
+        state.currentTour = null;
+        $("tour-select").innerHTML = "";
+        renderTokens();
+        renderTour();
+        writeLog("State reset", {});
+      });
+
+      renderTokens();
+      renderTour();
+      if (state.guideToken) {
+        loadMine().catch((error) => writeLog("Initial load failed", { message: error.message }));
+      }
+    </script>
+  </body>
+</html>

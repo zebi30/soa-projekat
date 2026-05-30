@@ -166,6 +166,7 @@ func main() {
 		{"/api/positions", newProxy("http://tours-service:8083")},
 		{"/simulator", newProxy("http://tours-service:8083")},
 		{"/guide", newProxy("http://tours-service:8083")},
+		{"/lifecycle", newProxy("http://tours-service:8083")},
 		{"/follows", newProxy("http://follower-service:8000")},
 		{"/me", newProxy("http://follower-service:8000")},
 	}
