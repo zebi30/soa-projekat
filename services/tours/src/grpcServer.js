@@ -4,6 +4,8 @@ const protoLoader = require("@grpc/proto-loader");
 
 const env = require("./config/env");
 const tourService = require("./services/tourService");
+const reviewService = require("./services/reviewService");
+const tourExecutionService = require("./services/tourExecutionService");
 const { verifyToken } = require("./utils/token");
 
 const protoPath = path.resolve(__dirname, "../proto/tours.proto");
@@ -81,11 +83,77 @@ function listPublishedTours(call, callback) {
   });
 }
 
+function createReview(call, callback) {
+  wrapGrpc(call, callback, async (request) => {
+    const user = getUserFromAuthorization(request.authorization);
+    requireRole(user, "tourist");
+
+    const review = await reviewService.createReview(user.sub, user.email, request.tourId, {
+      rating: request.rating,
+      comment: request.comment,
+      visitedAt: request.visitedAt,
+      images: request.images || []
+    });
+
+    return { reviewJson: JSON.stringify(review) };
+  });
+}
+
+function startExecution(call, callback) {
+  wrapGrpc(call, callback, async (request) => {
+    const user = getUserFromAuthorization(request.authorization);
+    requireRole(user, "tourist");
+
+    const execution = await tourExecutionService.startExecution(
+      user.sub,
+      request.authorization,
+      request.tourId,
+      { latitude: request.latitude, longitude: request.longitude }
+    );
+
+    return { executionJson: JSON.stringify(execution) };
+  });
+}
+
+function createReview(call, callback) {
+  wrapGrpc(call, callback, async (request) => {
+    const user = getUserFromAuthorization(request.authorization);
+    requireRole(user, "tourist");
+
+    const review = await reviewService.createReview(user.sub, user.email, request.tourId, {
+      rating: request.rating,
+      comment: request.comment,
+      visitedAt: request.visitedAt,
+      images: request.images || []
+    });
+
+    return { reviewJson: JSON.stringify(review) };
+  });
+}
+
+function startExecution(call, callback) {
+  wrapGrpc(call, callback, async (request) => {
+    const user = getUserFromAuthorization(request.authorization);
+    requireRole(user, "tourist");
+
+    const execution = await tourExecutionService.startExecution(
+      user.sub,
+      request.authorization,
+      request.tourId,
+      { latitude: request.latitude, longitude: request.longitude }
+    );
+
+    return { executionJson: JSON.stringify(execution) };
+  });
+}
+
 function startGrpcServer() {
   const server = new grpc.Server();
   server.addService(toursProto.ToursService.service, {
     PublishTour: publishTour,
-    ListPublishedTours: listPublishedTours
+    ListPublishedTours: listPublishedTours,
+    CreateReview: createReview,
+    StartExecution: startExecution
   });
 
   const address = `0.0.0.0:${env.GRPC_PORT}`;

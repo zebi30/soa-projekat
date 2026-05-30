@@ -2,9 +2,13 @@ syntax = "proto3";
 
 package tours;
 
+option go_package = "gateway/proto";
+
 service ToursService {
   rpc PublishTour(PublishTourRequest) returns (TourResponse);
   rpc ListPublishedTours(ListPublishedToursRequest) returns (PublishedToursResponse);
+  rpc CreateReview(CreateReviewRequest) returns (ReviewResponse);
+  rpc StartExecution(StartExecutionRequest) returns (ExecutionResponse);
 }
 
 message PublishTourRequest {
@@ -16,10 +20,34 @@ message ListPublishedToursRequest {
   string authorization = 1;
 }
 
+message CreateReviewRequest {
+  string tour_id = 1;
+  string authorization = 2;
+  int32 rating = 3;
+  string comment = 4;
+  string visited_at = 5;
+  repeated string images = 6;
+}
+
+message StartExecutionRequest {
+  string tour_id = 1;
+  string authorization = 2;
+  double latitude = 3;
+  double longitude = 4;
+}
+
 message TourResponse {
   string tour_json = 1;
 }
 
 message PublishedToursResponse {
   string tours_json = 1;
+}
+
+message ReviewResponse {
+  string review_json = 1;
+}
+
+message ExecutionResponse {
+  string execution_json = 1;
 }
