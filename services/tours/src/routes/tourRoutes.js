@@ -11,7 +11,13 @@ const router = express.Router();
 
 router.post("/", authenticate, requireGuide, tourController.createTour);
 router.get("/mine", authenticate, requireGuide, tourController.getMyTours);
+router.get("/published", authenticate, requireTourist, tourController.listPublishedTours);
 router.get("/:id", authenticate, requireGuide, tourController.getTourById);
+router.post("/:id/publish", authenticate, requireGuide, tourController.publishTour);
+router.post("/:id/archive", authenticate, requireGuide, tourController.archiveTour);
+router.post("/:id/activate", authenticate, requireGuide, tourController.activateTour);
+router.post("/:id/transport-times", authenticate, requireGuide, tourController.addTransportTime);
+router.get("/:id/transport-times", authenticate, requireGuide, tourController.listTransportTimes);
 
 router.post("/:id/keypoints", authenticate, requireGuide, keyPointController.addKeyPoint);
 router.get("/:id/keypoints", authenticate, requireGuide, keyPointController.listKeyPoints);
