@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="sr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tour Execution Test</title>
+    <style>
+      * { box-sizing: border-box; }
+      :root {
+        --ink: #17202a; --muted: #667085; --line: #d7dde5;
+        --panel: #ffffff; --page: #f5f7fa;
+        --accent: #0f766e; --accent-strong: #115e59;
+        --danger: #b42318; --ok: #067647; --warn: #b45309;
+      }
+      html, body { margin: 0; min-height: 100%; font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: var(--ink); background: var(--page); }
+      header { padding: 16px 24px; background: #17202a; color: #fff; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+      header h1 { margin: 0; font-size: 20px; }
+      header p { margin: 4px 0 0; color: #94a3b8; font-size: 13px; }
+      main { display: grid; grid-template-columns: 320px 1fr; gap: 16px; padding: 16px; }
+      .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; }
+      h2 { font-size: 15px; margin: 0 0 12px; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+      h3 { font-size: 12px; text-transform: uppercase; color: var(--muted); margin: 14px 0 6px; }
+      label { display: block; font-size: 13px; font-weight: 600; color: #344054; margin-bottom: 4px; }
+      input, select, textarea { width: 100%; border: 1px solid #c8d0db; border-radius: 6px; padding: 7px 10px; font: inherit; font-size: 14px; background: #fff; color: var(--ink); margin-bottom: 8px; }
+      .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+      .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+      button { border: 0; border-radius: 6px; padding: 8px 12px; font: inherit; font-size: 13px; cursor: pointer; background: var(--accent); color: #fff; }
+      button:hover { background: var(--accent-strong); }
+      button.secondary { background: #344054; }
+      button.danger { background: var(--danger); }
+      button.ghost { background: #eef2f6; color: #17202a; border: 1px solid #d0d5dd; }
+      button:disabled { opacity: 0.5; cursor: not-allowed; }
+      .badge { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 12px; font-weight: 600; }
+      .badge.active { background: #dcfce7; color: var(--ok); }
+      .badge.completed { background: #dbeafe; color: #1d4ed8; }
+      .badge.abandoned { background: #fee2e2; color: var(--danger); }
+      .badge.none { background: #f1f5f9; color: var(--muted); }
+      .metric-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 12px; }
+      .metric { background: #f8fafc; border: 1px solid #e4e7ec; border-radius: 6px; padding: 10px; }
+      .metric span { display: block; color: var(--muted); font-size: 11px; text-transform: uppercase; }
+      .metric strong { display: block; margin-top: 3px; font-size: 15px; word-break: break-all; }
+      .kp-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+      .kp-list li { padding: 8px 10px; border-radius: 6px; border-left: 4px solid #c8d0db; background: #f8fafc; font-size: 13px; }
+      .kp-list li.done { border-color: var(--ok); background: #f0fdf4; }
+      .kp-list li .kp-time { font-size: 11px; color: var(--muted); margin-top: 2px; }
+      .log { min-height: 200px; max-height: 400px; overflow: auto; background: #101828; color: #e4e7ec; border-radius: 8px; padding: 12px; font: 12px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; white-space: pre-wrap; }
+      .auto-indicator { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+      .dot { width: 8px; height: 8px; border-radius: 50%; background: #c8d0db; }
+      .dot.on { background: var(--ok); animation: pulse 1s infinite; }
+      @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+      .workspace { display: grid; gap: 16px; }
+      .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+      @media (max-width: 900px) { main, .two-col { grid-template-columns: 1fr; } }
+      .token-box { font-family: monospace; font-size: 11px; background: #f2f4f7; border-radius: 6px; padding: 6px 8px; word-break: break-all; color: #344054; min-height: 28px; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div>
+        <h1>Tour Execution Test</h1>
+        <p>Testiranje pokretanja ture, keypointova i recenzija kroz gateway → gRPC → tours-service</p>
+      </div>
+      <button class="ghost" id="btn-reset">Reset stanja</button>
+    </header>
+
+    <main>
+      <!-- LIJEVA KOLONA: status aktivne sesije -->
+      <div style="display:grid;gap:16px;align-self:start;">
+        <div class="card">
+          <h2>Aktivna sesija</h2>
+          <div class="metric-grid">
+            <div class="metric"><span>Status</span><strong id="m-status"><span class="badge none">nema</span></strong></div>
+            <div class="metric"><span>Tura ID</span><strong id="m-tourid">—</strong></div>
+            <div class="metric"><span>Start lokacija</span><strong id="m-startloc">—</strong></div>
+            <div class="metric"><span>Zadnja aktivnost</span><strong id="m-lastact">—</strong></div>
+          </div>
+          <h3>Keypointovi</h3>
+          <ul class="kp-list" id="kp-list"><li style="color:var(--muted);font-size:13px;">Nema aktivne sesije.</li></ul>
+          <div class="actions" style="margin-top:12px;">
+            <button id="btn-load-active" class="ghost">Učitaj aktivnu sesiju</button>
+            <button id="btn-complete" class="secondary" disabled>Završi turu</button>
+            <button id="btn-abandon" class="danger" disabled>Napusti turu</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Auto provjera pozicije</h2>
+          <p style="font-size:13px;color:var(--muted);margin:0 0 10px;">Frontend šalje zahtjev svakih 10s koristeći poziciju iz simulatora.</p>
+          <div class="auto-indicator"><div class="dot" id="auto-dot"></div><span id="auto-label">Zaustavljeno</span></div>
+          <div class="actions" style="margin-top:10px;">
+            <button id="btn-auto-start">Pokreni auto (10s)</button>
+            <button id="btn-auto-stop" class="ghost" disabled>Zaustavi</button>
+          </div>
+          <h3>Pozicija simulatora</h3>
+          <div id="sim-pos" style="font-size:13px;color:var(--muted);">Nije dohvaćena.</div>
+        </div>
+      </div>
+
+      <!-- DESNA KOLONA: akcije -->
+      <div class="workspace">
+        <div class="two-col">
+          <!-- LOGIN -->
+          <div class="card">
+            <h2>1. Prijava</h2>
+            <label>Tourist email</label>
+            <input id="tourist-email" value="tourist99@test.com" />
+            <label>Lozinka</label>
+            <input id="tourist-password" type="password" value="test1234" />
+            <div class="actions">
+              <button id="btn-login">Prijavi se</button>
+            </div>
+            <h3>Token</h3>
+            <div id="tourist-token" class="token-box">Nije prijavljen.</div>
+          </div>
+
+          <!-- IZBOR TURE -->
+          <div class="card">
+            <h2>2. Izbor ture</h2>
+            <p style="font-size:13px;color:var(--muted);margin:0 0 8px;">Prikazuje objavljene i arhivirane ture.</p>
+            <div class="actions">
+              <button id="btn-load-tours">Učitaj ture</button>
+            </div>
+            <label style="margin-top:10px;">Tura</label>
+            <select id="tour-select" size="4" style="height:auto;"></select>
+          </div>
+        </div>
+
+        <div class="two-col">
+          <!-- POKRETANJE TURE -->
+          <div class="card">
+            <h2>3. Pokreni turu</h2>
+            <p style="font-size:13px;color:var(--muted);margin:0 0 10px;">Unesi početnu lokaciju (ili uzmi iz simulatora).</p>
+            <div class="row">
+              <div>
+                <label>Latitude</label>
+                <input id="start-lat" type="number" step="any" value="44.8163" />
+              </div>
+              <div>
+                <label>Longitude</label>
+                <input id="start-lon" type="number" step="any" value="20.4600" />
+              </div>
+            </div>
+            <div class="actions">
+              <button id="btn-start">Pokreni (gRPC)</button>
+              <button id="btn-from-sim" class="ghost">Uzmi iz simulatora</button>
+            </div>
+          </div>
+
+          <!-- RUČNA PROVJERA POZICIJE -->
+          <div class="card">
+            <h2>4. Provjeri poziciju</h2>
+            <p style="font-size:13px;color:var(--muted);margin:0 0 10px;">Šalje poziciju i provjeri blizinu keypointova.</p>
+            <div class="row">
+              <div>
+                <label>Latitude</label>
+                <input id="check-lat" type="number" step="any" value="44.8163" />
+              </div>
+              <div>
+                <label>Longitude</label>
+                <input id="check-lon" type="number" step="any" value="20.4600" />
+              </div>
+            </div>
+            <div class="actions">
+              <button id="btn-check-pos">Provjeri poziciju</button>
+              <button id="btn-from-sim-check" class="ghost">Uzmi iz simulatora</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- RECENZIJA -->
+        <div class="card">
+          <h2>5. Ostavi recenziju (gRPC)</h2>
+          <div class="row">
+            <div>
+              <label>Ocjena (1-5)</label>
+              <input id="review-rating" type="number" min="1" max="5" value="5" />
+            </div>
+            <div>
+              <label>Datum posjete</label>
+              <input id="review-date" type="date" value="2026-05-20" />
+            </div>
+          </div>
+          <label>Komentar</label>
+          <input id="review-comment" value="Odlična tura!" />
+          <label>Tura ID (za recenziju)</label>
+          <input id="review-tour-id" placeholder="Automatski popunjeno pri odabiru ture" />
+          <div class="actions">
+            <button id="btn-review">Ostavi recenziju (gRPC)</button>
+          </div>
+        </div>
+
+        <!-- LOG -->
+        <div class="card">
+          <h2>Log</h2>
+          <pre id="log" class="log">Spreman.</pre>
+        </div>
+      </div>
+    </main>
+
+    <script>
+      const state = {
+        token: localStorage.getItem("exec_token") || "",
+        execution: JSON.parse(localStorage.getItem("exec_current") || "null"),
+        selectedTour: JSON.parse(localStorage.getItem("exec_tour") || "null"),
+        autoTimer: null
+      };
+
+      const $ = id => document.getElementById(id);
+      const logEl = $("log");
+
+      function log(title, data) {
+        const t = new Date().toLocaleTimeString();
+        logEl.textContent = `[${t}] ${title}\n` + JSON.stringify(data, null, 2);
+      }
+
+      function save() {
+        localStorage.setItem("exec_token", state.token || "");
+        localStorage.setItem("exec_current", JSON.stringify(state.execution || null));
+        localStorage.setItem("exec_tour", JSON.stringify(state.selectedTour || null));
+      }
+
+      function authHeaders() {
+        return { "Content-Type": "application/json", Authorization: `Bearer ${state.token}` };
+      }
+
+      async function api(path, opts = {}) {
+        const res = await fetch(path, opts);
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body.message || `HTTP ${res.status}`);
+        return body;
+      }
+
+      async function getSimulatorPosition() {
+        try {
+          const data = await api("/api/positions/me", { headers: authHeaders() });
+          return data.position;
+        } catch { return null; }
+      }
+
+      function renderExecution() {
+        const ex = state.execution;
+        if (!ex) {
+          $("m-status").innerHTML = '<span class="badge none">nema</span>';
+          $("m-tourid").textContent = "—";
+          $("m-startloc").textContent = "—";
+          $("m-lastact").textContent = "—";
+          $("kp-list").innerHTML = '<li style="color:var(--muted);font-size:13px;">Nema aktivne sesije.</li>';
+          $("btn-complete").disabled = true;
+          $("btn-abandon").disabled = true;
+          return;
+        }
+
+        const active = ex.status === "active";
+        $("m-status").innerHTML = `<span class="badge ${ex.status}">${ex.status}</span>`;
+        $("m-tourid").textContent = ex.tourId || "—";
+        $("m-startloc").textContent = ex.startLocation
+          ? `${ex.startLocation.latitude.toFixed(4)}, ${ex.startLocation.longitude.toFixed(4)}`
+          : "—";
+        $("m-lastact").textContent = ex.lastActivity
+          ? new Date(ex.lastActivity).toLocaleTimeString()
+          : "—";
+
+        const kps = ex.completedKeyPoints || [];
+        $("kp-list").innerHTML = kps.length === 0
+          ? '<li style="color:var(--muted);font-size:13px;">Nema kompletiranih keypointova.</li>'
+          : kps.map(k => `<li class="done">
+              <strong>${k.keyPointId}</strong>
+              <div class="kp-time">${new Date(k.completedAt).toLocaleString()}</div>
+            </li>`).join("");
+
+        $("btn-complete").disabled = !active;
+        $("btn-abandon").disabled = !active;
+      }
+
+      function setExecution(ex) {
+        state.execution = ex;
+        save();
+        renderExecution();
+      }
+
+      // LOGIN
+      $("btn-login").addEventListener("click", async () => {
+        try {
+          const data = await api("/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: $("tourist-email").value.trim(), password: $("tourist-password").value })
+          });
+          state.token = data.token;
+          save();
+          $("tourist-token").textContent = data.token;
+          log("Prijavljen", { user: data.user });
+        } catch (e) { log("Login greška", { message: e.message }); }
+      });
+
+      // UČITAJ TURE
+      $("btn-load-tours").addEventListener("click", async () => {
+        try {
+          const data = await api("/api/tours/published", { headers: authHeaders() });
+          const sel = $("tour-select");
+          sel.innerHTML = "";
+          for (const t of data.tours) {
+            const opt = document.createElement("option");
+            opt.value = t.id;
+            opt.textContent = `${t.name} | ${t.status} | ${t.keyPoints?.length ?? 0} KP`;
+            opt.dataset.tour = JSON.stringify(t);
+            sel.appendChild(opt);
+          }
+          log("Ture učitane", data);
+        } catch (e) { log("Greška učitavanja tura", { message: e.message }); }
+      });
+
+      $("tour-select").addEventListener("change", e => {
+        const opt = e.target.selectedOptions[0];
+        if (!opt) return;
+        state.selectedTour = JSON.parse(opt.dataset.tour);
+        save();
+        $("review-tour-id").value = state.selectedTour.id;
+        log("Tura odabrana", state.selectedTour);
+      });
+
+      // POKRENI TURU
+      $("btn-start").addEventListener("click", async () => {
+        if (!state.selectedTour) return log("Greška", { message: "Odaberi turu." });
+        try {
+          const data = await api(`/api/tours/${state.selectedTour.id}/execution`, {
+            method: "POST",
+            headers: authHeaders(),
+            body: JSON.stringify({ latitude: +$("start-lat").value, longitude: +$("start-lon").value })
+          });
+          setExecution(data.execution);
+          log("Tura pokrenuta (gRPC → StartExecution)", data);
+        } catch (e) { log("Greška pokretanja", { message: e.message }); }
+      });
+
+      $("btn-from-sim").addEventListener("click", async () => {
+        const pos = await getSimulatorPosition();
+        if (pos) { $("start-lat").value = pos.latitude; $("start-lon").value = pos.longitude; }
+        else log("Simulator", { message: "Nema pozicije u simulatoru." });
+      });
+
+      // PROVJERA POZICIJE
+      async function checkPosition(lat, lon) {
+        if (!state.execution || state.execution.status !== "active") return;
+        try {
+          const data = await api(`/api/executions/${state.execution.id}/check-position`, {
+            method: "POST",
+            headers: authHeaders(),
+            body: JSON.stringify({ latitude: lat, longitude: lon })
+          });
+          setExecution(data.execution);
+          const n = data.newlyCompletedKeyPoints?.length || 0;
+          log(`Provjera pozicije (${lat.toFixed(4)}, ${lon.toFixed(4)})`,
+            n > 0 ? { novoKompletiranih: n, keypointovi: data.newlyCompletedKeyPoints } : { info: "Nisi blizu nijednog keypointa.", lastActivity: data.execution.lastActivity });
+        } catch (e) { log("Greška provjere pozicije", { message: e.message }); }
+      }
+
+      $("btn-check-pos").addEventListener("click", () =>
+        checkPosition(+$("check-lat").value, +$("check-lon").value));
+
+      $("btn-from-sim-check").addEventListener("click", async () => {
+        const pos = await getSimulatorPosition();
+        if (pos) { $("check-lat").value = pos.latitude; $("check-lon").value = pos.longitude; }
+        else log("Simulator", { message: "Nema pozicije u simulatoru." });
+      });
+
+      // AUTO PROVJERA SVAKIH 10s
+      $("btn-auto-start").addEventListener("click", async () => {
+        if (state.autoTimer) return;
+        $("btn-auto-start").disabled = true;
+        $("btn-auto-stop").disabled = false;
+        $("auto-dot").classList.add("on");
+        $("auto-label").textContent = "Aktivno — provjera svakih 10s";
+
+        async function tick() {
+          const pos = await getSimulatorPosition();
+          if (pos) {
+            $("sim-pos").textContent = `lat: ${pos.latitude}, lon: ${pos.longitude}`;
+            await checkPosition(pos.latitude, pos.longitude);
+          } else {
+            $("sim-pos").textContent = "Simulator nema poziciju.";
+          }
+        }
+
+        await tick();
+        state.autoTimer = setInterval(tick, 10000);
+      });
+
+      $("btn-auto-stop").addEventListener("click", () => {
+        clearInterval(state.autoTimer);
+        state.autoTimer = null;
+        $("btn-auto-start").disabled = false;
+        $("btn-auto-stop").disabled = true;
+        $("auto-dot").classList.remove("on");
+        $("auto-label").textContent = "Zaustavljeno";
+      });
+
+      // ZAVRŠI / NAPUSTI
+      $("btn-complete").addEventListener("click", async () => {
+        try {
+          const data = await api(`/api/executions/${state.execution.id}/complete`, { method: "PATCH", headers: authHeaders() });
+          setExecution(data.execution);
+          log("Tura završena", data);
+        } catch (e) { log("Greška završavanja", { message: e.message }); }
+      });
+
+      $("btn-abandon").addEventListener("click", async () => {
+        try {
+          const data = await api(`/api/executions/${state.execution.id}/abandon`, { method: "PATCH", headers: authHeaders() });
+          setExecution(data.execution);
+          log("Tura napuštena", data);
+        } catch (e) { log("Greška napuštanja", { message: e.message }); }
+      });
+
+      // RECENZIJA (gRPC)
+      $("btn-review").addEventListener("click", async () => {
+        const tourId = $("review-tour-id").value.trim() || state.selectedTour?.id;
+        if (!tourId) return log("Greška", { message: "Odaberi turu." });
+        try {
+          const data = await api(`/api/tours/${tourId}/reviews`, {
+            method: "POST",
+            headers: authHeaders(),
+            body: JSON.stringify({
+              rating: +$("review-rating").value,
+              comment: $("review-comment").value.trim(),
+              visitedAt: $("review-date").value
+            })
+          });
+          log("Recenzija ostavljena (gRPC → CreateReview)", data);
+        } catch (e) { log("Greška recenzije", { message: e.message }); }
+      });
+
+      // RESET
+      $("btn-reset").addEventListener("click", () => {
+        clearInterval(state.autoTimer);
+        state.token = ""; state.execution = null; state.selectedTour = null; state.autoTimer = null;
+        localStorage.removeItem("exec_token");
+        localStorage.removeItem("exec_current");
+        localStorage.removeItem("exec_tour");
+        $("tourist-token").textContent = "Nije prijavljen.";
+        $("tour-select").innerHTML = "";
+        $("review-tour-id").value = "";
+        $("auto-dot").classList.remove("on");
+        $("auto-label").textContent = "Zaustavljeno";
+        $("btn-auto-start").disabled = false;
+        $("btn-auto-stop").disabled = true;
+        renderExecution();
+        log("Reset", {});
+      });
+
+      // Učitaj aktivnu sesiju
+      async function loadActiveExecution() {
+        if (!state.token) return;
+        try {
+          const data = await api("/api/executions/active", { headers: authHeaders() });
+          if (data.execution) {
+            setExecution(data.execution);
+            log("Aktivna sesija učitana", data.execution);
+          }
+        } catch (e) { /* nema aktivne sesije */ }
+      }
+
+      $("btn-load-active").addEventListener("click", async () => {
+        try {
+          const data = await api("/api/executions/active", { headers: authHeaders() });
+          if (data.execution) {
+            setExecution(data.execution);
+            log("Aktivna sesija učitana", data.execution);
+          } else {
+            log("Nema aktivne sesije", {});
+          }
+        } catch (e) { log("Greška učitavanja sesije", { message: e.message }); }
+      });
+
+      // Init
+      if (state.token) $("tourist-token").textContent = state.token;
+      if (state.selectedTour) $("review-tour-id").value = state.selectedTour.id;
+      renderExecution();
+      loadActiveExecution();
+    </script>
+  </body>
+</html>

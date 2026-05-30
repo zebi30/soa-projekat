@@ -344,6 +344,7 @@ func main() {
 		{"/simulator", newProxy("http://tours-service:8083")},
 		{"/guide", newProxy("http://tours-service:8083")},
 		{"/lifecycle", newProxy("http://tours-service:8083")},
+		{"/execution", newProxy("http://tours-service:8083")},
 		{"/api/cart", newProxy("http://purchase-service:8084")},
 		{"/api/purchases", newProxy("http://purchase-service:8084")},
 		{"/follows", newProxy("http://follower-service:8000")},
