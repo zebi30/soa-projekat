@@ -100,6 +100,7 @@ services:
         condition: service_healthy
     environment:
       PORT: 8083
+      GRPC_PORT: 9093
       MONGO_URI: mongodb://tour-mongo:27017/tours_db
       JWT_SECRET: change-me
     ports:
@@ -144,6 +145,8 @@ services:
       - blogs-service
       - tours-service
       - follower-service
+    environment:
+      TOURS_GRPC_ADDR: tours-service:9093
     ports:
       - "8080:80"
 
