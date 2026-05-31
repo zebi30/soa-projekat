@@ -23,6 +23,7 @@ if (missingVariables.length > 0) {
 
 module.exports = {
   PORT: Number(process.env.PORT),
+  GRPC_PORT: Number(process.env.GRPC_PORT || 9095),
   DB_HOST: process.env.DB_HOST,
   DB_PORT: Number(process.env.DB_PORT),
   DB_NAME: process.env.DB_NAME,

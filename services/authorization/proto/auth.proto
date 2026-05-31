@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package auth;
+
+option go_package = "gateway/proto";
+
+service AuthService {
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+  rpc Login(LoginRequest) returns (LoginResponse);
+}
+
+message RegisterRequest {
+  string username = 1;
+  string email = 2;
+  string password = 3;
+  string role = 4;
+}
+
+message RegisterResponse {
+  string message = 1;
+  string user_json = 2;
+}
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  string message = 1;
+  string token = 2;
+  string user_json = 3;
+}

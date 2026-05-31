@@ -33,7 +33,7 @@
 
   <main>
     <section id="auth" class="tab active">
-      <h2>Registracija i prijava</h2>
+      <h2>Registracija i prijava (RPC)</h2>
       <div class="card">
         <h3>Registracija</h3>
         <input id="reg-username" placeholder="korisničko ime" />
@@ -43,13 +43,13 @@
           <option value="guide">guide</option>
           <option value="tourist">tourist</option>
         </select>
-        <button data-action="register">Registruj</button>
+        <button data-action="register">Registruj (RPC)</button>
       </div>
       <div class="card">
         <h3>Prijava</h3>
         <input id="login-email" placeholder="email" />
         <input id="login-password" type="password" placeholder="lozinka" />
-        <button data-action="login">Prijavi se</button>
+        <button data-action="login">Prijavi se (RPC)</button>
       </div>
       <pre id="auth-out" class="output"></pre>
     </section>
@@ -123,6 +123,32 @@
       <h2>Ture — turista</h2>
       <div class="card">
         <button data-action="listPublished">Objavljene ture (gRPC)</button>
+      </div>
+      <div class="card">
+        <h3>Pokreni turu (test)</h3>
+        <input id="exec-tourId" placeholder="ID ture" />
+        <input id="exec-lat" placeholder="latitude" />
+        <input id="exec-lon" placeholder="longitude" />
+        <button data-action="startExecution">Pokreni turu</button>
+      </div>
+      <div class="card">
+        <h3>Aktivna sesija</h3>
+        <div>Status: <span id="exec-status">nema</span></div>
+        <div>Tura: <span id="exec-tour">—</span></div>
+        <div>Start lok.: <span id="exec-start">—</span></div>
+        <div>Zadnja aktivnost: <span id="exec-last">—</span></div>
+        <div>Kompletirani ključni punktovi:</div>
+        <ul id="exec-kps"></ul>
+        <div style="margin-top:8px;">
+          <button data-action="execLoadActive">Učitaj aktivnu sesiju</button>
+          <button data-action="execComplete">Završi</button>
+          <button data-action="execAbandon">Napusti</button>
+        </div>
+        <div style="margin-top:8px;">
+          <button data-action="execAutoStart">Auto start (10s)</button>
+          <button data-action="execAutoStop">Auto stop</button>
+        </div>
+        <div style="margin-top:6px; font-size:13px; color:#666;" id="exec-sim-pos">Sim pozicija: —</div>
       </div>
       <pre id="tours-tourist-out" class="output"></pre>
     </section>

@@ -98,7 +98,7 @@ function tags(id) {
 
 const actions = {
   async register(out) {
-    return api("POST", "/auth/register", {
+    return api("POST", "/rpc/auth/register", {
       username: val("reg-username"),
       email: val("reg-email"),
       password: val("reg-password"),
@@ -107,7 +107,7 @@ const actions = {
   },
 
   async login(out) {
-    const result = await api("POST", "/auth/login", {
+    const result = await api("POST", "/rpc/auth/login", {
       email: val("login-email"),
       password: val("login-password")
     });
@@ -149,11 +149,16 @@ const actions = {
   },
 
   async addKeypoint() {
+    const lat = Number(val("kp-lat"));
+    const lon = Number(val("kp-lon"));
+    if (!isFinite(lat) || !isFinite(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+      return { ok: false, status: 400, data: { message: "Neispravne koordinate za ključnu tačku." } };
+    }
     return api("POST", "/api/tours/" + val("tour-id") + "/keypoints", {
       name: val("kp-name"),
       description: val("kp-desc"),
-      latitude: num("kp-lat"),
-      longitude: num("kp-lon"),
+      latitude: lat,
+      longitude: lon,
       imageUrl: val("kp-img") || null
     });
   },
@@ -183,6 +188,34 @@ const actions = {
 
   async listPublished() {
     return api("GET", "/api/tours/published");
+  },
+
+  async startExecution() {
+    const tourId = val("exec-tourId");
+    let latitude = val("exec-lat") ? Number(val("exec-lat")) : null;
+    let longitude = val("exec-lon") ? Number(val("exec-lon")) : null;
+
+    // If user didn't provide coords, ask Position simulator for current position
+    if (latitude === null || longitude === null) {
+      const posRes = await api("GET", "/api/positions/me");
+      if (posRes.ok && posRes.data && posRes.data.position) {
+        latitude = posRes.data.position.latitude;
+        longitude = posRes.data.position.longitude;
+      } else {
+        return { ok: false, status: 400, data: { message: "Nije moguće dobiti poziciju iz Position simulatora i polja su prazna." } };
+      }
+    }
+
+    if (!isFinite(latitude) || !isFinite(longitude) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+      return { ok: false, status: 400, data: { message: "Neispravne start koordinate." } };
+    }
+
+    const res = await api("POST", "/api/tours/" + tourId + "/execution", { latitude, longitude });
+    if (res.ok && res.data && res.data.execution) {
+      localStorage.setItem("soa_exec", JSON.stringify(res.data.execution));
+      renderExecPanel();
+    }
+    return res;
   },
 
   async addToCart() {
@@ -260,6 +293,71 @@ const actions = {
   async blockUser() {
     return api("PATCH", "/auth/users/" + val("block-id") + "/block");
   }
+  ,
+  // Execution helpers (active tour for tourist)
+  async execLoadActive() {
+    return api("GET", "/api/executions/active");
+  },
+
+  async execComplete() {
+    const ex = JSON.parse(localStorage.getItem("soa_exec") || "null");
+    if (!ex) return { ok: false, status: 0, data: { message: "No active execution" } };
+    const res = await api("PATCH", "/api/executions/" + ex.id + "/complete");
+    if (res.ok && res.data && res.data.execution) {
+      localStorage.setItem("soa_exec", JSON.stringify(res.data.execution));
+      renderExecPanel();
+    }
+    return res;
+  },
+
+  async execAbandon() {
+    const ex = JSON.parse(localStorage.getItem("soa_exec") || "null");
+    if (!ex) return { ok: false, status: 0, data: { message: "No active execution" } };
+    const res = await api("PATCH", "/api/executions/" + ex.id + "/abandon");
+    if (res.ok && res.data && res.data.execution) {
+      localStorage.setItem("soa_exec", JSON.stringify(res.data.execution));
+      renderExecPanel();
+    }
+    return res;
+  },
+
+  async execAutoStart() {
+    const ex = JSON.parse(localStorage.getItem("soa_exec") || "null");
+    if (!ex || ex.status !== "active") return { ok: false, status: 0, data: { message: "No active execution to auto-check." } };
+    if (window.__soa_exec_timer) return { ok: true, status: 0, data: { message: "Auto already running" } };
+
+    async function tick() {
+      // get simulator position
+      const posRes = await api("GET", "/api/positions/me");
+      const pos = posRes.ok ? (posRes.data && posRes.data.position ? posRes.data.position : null) : null;
+      const simEl = document.getElementById("exec-sim-pos");
+      if (pos) {
+        if (simEl) simEl.textContent = `Sim pozicija: ${pos.latitude.toFixed(6)}, ${pos.longitude.toFixed(6)}`;
+        await api("POST", "/api/executions/" + ex.id + "/check-position", { latitude: pos.latitude, longitude: pos.longitude });
+        const fresh = await api("GET", "/api/executions/active");
+        if (fresh.ok && fresh.data && fresh.data.execution) {
+          localStorage.setItem("soa_exec", JSON.stringify(fresh.data.execution));
+          renderExecPanel();
+        }
+      } else {
+        if (simEl) simEl.textContent = "Sim pozicija: nema";
+      }
+    }
+
+    // run immediately then every 10s
+    tick();
+    window.__soa_exec_timer = setInterval(tick, 10000);
+    return { ok: true, status: 0, data: { message: "Auto started" } };
+  },
+
+  async execAutoStop() {
+    if (window.__soa_exec_timer) {
+      clearInterval(window.__soa_exec_timer);
+      window.__soa_exec_timer = null;
+      return { ok: true, status: 0, data: { message: "Auto stopped" } };
+    }
+    return { ok: false, status: 0, data: { message: "Auto not running" } };
+  }
 };
 
 const outputBySection = {
@@ -312,3 +410,31 @@ document.addEventListener("click", async (event) => {
 
 document.getElementById("apiBase").value = base();
 renderSession();
+// Execution panel rendering
+function renderExecPanel() {
+  const ex = JSON.parse(localStorage.getItem("soa_exec") || "null");
+  const setText = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+  if (!ex) {
+    setText("exec-status", "nema");
+    setText("exec-tour", "—");
+    setText("exec-start", "—");
+    setText("exec-last", "—");
+    const kps = document.getElementById("exec-kps"); if (kps) kps.innerHTML = "";
+    return;
+  }
+  setText("exec-status", ex.status || "—");
+  setText("exec-tour", ex.tourId || "—");
+  setText("exec-start", ex.startLocation ? `${ex.startLocation.latitude.toFixed(6)}, ${ex.startLocation.longitude.toFixed(6)}` : "—");
+  setText("exec-last", ex.lastActivity ? new Date(ex.lastActivity).toLocaleString() : "—");
+  const kps = document.getElementById("exec-kps");
+  if (kps) {
+    kps.innerHTML = "";
+    (ex.completedKeyPoints || []).forEach(k => {
+      const li = document.createElement("li");
+      li.textContent = `${k.keyPointId} @ ${new Date(k.completedAt).toLocaleString()}`;
+      kps.appendChild(li);
+    });
+  }
+}
+
+renderExecPanel();
