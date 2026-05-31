@@ -84,44 +84,20 @@ async function getCart(touristId) {
   return cart.toJSON();
 }
 
+const sagaOrchestrator = require("./sagaOrchestrator");
+
 async function checkout(touristId) {
   const cart = await getOrCreateCart(touristId);
 
-  if (cart.items.length === 0) {
-    throw createHttpError(400, "Cart is empty.");
-  }
+  // delegate sequence to orchestrator while preserving API behavior
+  const result = await sagaOrchestrator.runCheckoutSaga(touristId, cart.items);
 
-  for (const item of cart.items) {
-    await requirePurchasableTour(item.tourId);
-  }
-
-  const tokens = [];
-  for (const item of cart.items) {
-    try {
-      const token = await TourPurchaseToken.create({
-        touristId,
-        tourId: item.tourId,
-        tourName: item.tourName,
-        price: item.price,
-        purchasedAt: new Date()
-      });
-      tokens.push(token.toJSON());
-    } catch (error) {
-      if (error && error.code === 11000) {
-        throw createHttpError(409, `You have already purchased the tour "${item.tourName}".`);
-      }
-      throw error;
-    }
-  }
-
+  // clear cart after successful saga
   cart.items = [];
   recomputeTotal(cart);
   await cart.save();
 
-  return {
-    purchasedCount: tokens.length,
-    tokens
-  };
+  return result;
 }
 
 async function listMyPurchases(touristId) {

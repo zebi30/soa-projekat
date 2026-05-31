@@ -4,6 +4,7 @@ import (
 	"blog-service/client"
 	"blog-service/models"
 	"blog-service/repository"
+	"blog-service/sagas"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -92,7 +93,7 @@ func (h *BlogHandler) Create(w http.ResponseWriter, r *http.Request) {
 		blog.Status = "published"
 	}
 
-	if err := h.Repo.Create(&blog); err != nil {
+	if err := sagas.CreateBlogSaga(h.Repo, &blog); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -116,7 +117,7 @@ func (h *BlogHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	blog.ID = id
-	if err := h.Repo.Update(&blog); err != nil {
+	if err := sagas.UpdateBlogSaga(h.Repo, &blog); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -132,7 +133,7 @@ func (h *BlogHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.Repo.Delete(id); err != nil {
+	if err := sagas.DeleteBlogSaga(h.Repo, id); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
