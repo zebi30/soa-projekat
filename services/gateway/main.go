@@ -55,6 +55,10 @@ type toursRPCHandler struct {
 	client tourspb.ToursServiceClient
 }
 
+type authRPCHandler struct {
+	client *authRPCClient
+}
+
 var publishTourPath = regexp.MustCompile(`^/api/tours/([^/]+)/publish$`)
 var createReviewPath = regexp.MustCompile(`^/api/tours/([^/]+)/reviews$`)
 var startExecutionPath = regexp.MustCompile(`^/api/tours/([^/]+)/execution$`)
@@ -65,6 +69,14 @@ func writeJSON(w http.ResponseWriter, statusCode int, payload map[string]interfa
 	if err := json.NewEncoder(w).Encode(payload); err != nil {
 		log.Printf("failed to write json response: %v", err)
 	}
+}
+
+func normalizeGRPCAddress(target string) string {
+	if strings.Contains(target, "://") {
+		return target
+	}
+
+	return "dns:///" + target
 }
 
 func grpcHTTPStatus(err error) int {
@@ -308,11 +320,112 @@ func (h purchaseRPCHandler) listMyPurchases(w http.ResponseWriter, r *http.Reque
 	writeJSON(w, http.StatusOK, map[string]interface{}{"purchases": purchases})
 }
 
+func (h authRPCHandler) handle(w http.ResponseWriter, r *http.Request) bool {
+	if r.Method == http.MethodPost && (r.URL.Path == "/auth/register" || r.URL.Path == "/rpc/auth/register") {
+		h.register(w, r)
+		return true
+	}
+
+	if r.Method == http.MethodPost && (r.URL.Path == "/auth/login" || r.URL.Path == "/rpc/auth/login") {
+		h.login(w, r)
+		return true
+	}
+
+	return false
+}
+
+func (h authRPCHandler) register(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	var body struct {
+		Username string `json:"username"`
+		Email    string `json:"email"`
+		Password string `json:"password"`
+		Role     string `json:"role"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]interface{}{"message": "Invalid request body."})
+		return
+	}
+
+	response, err := h.client.Register(ctx, body.Username, body.Email, body.Password, body.Role)
+	if err != nil {
+		st, _ := status.FromError(err)
+		writeJSON(w, grpcHTTPStatus(err), map[string]interface{}{"message": st.Message()})
+		return
+	}
+
+	var user interface{}
+	if err := json.Unmarshal([]byte(response.UserJSON), &user); err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]interface{}{"message": "Invalid auth RPC response."})
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, map[string]interface{}{
+		"message": response.Message,
+		"user":    user,
+	})
+}
+
+func (h authRPCHandler) login(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	var body struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]interface{}{"message": "Invalid request body."})
+		return
+	}
+
+	response, err := h.client.Login(ctx, body.Email, body.Password)
+	if err != nil {
+		st, _ := status.FromError(err)
+		writeJSON(w, grpcHTTPStatus(err), map[string]interface{}{"message": st.Message()})
+		return
+	}
+
+	var user interface{}
+	if err := json.Unmarshal([]byte(response.UserJSON), &user); err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]interface{}{"message": "Invalid auth RPC response."})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"message": response.Message,
+		"token":   response.Token,
+		"user":    user,
+	})
+}
+
 func main() {
+	authGRPCAddr := os.Getenv("AUTH_GRPC_ADDR")
+	if authGRPCAddr == "" {
+		authGRPCAddr = "authorization-service:9095"
+	}
+	authGRPCAddr = normalizeGRPCAddress(authGRPCAddr)
+
+	authConn, err := grpc.NewClient(authGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatalf("failed to create authorization grpc client: %v", err)
+	}
+	defer authConn.Close()
+
+	authRPCClient, err := newAuthRPCClient(authConn)
+	if err != nil {
+		log.Fatalf("failed to initialize authorization auth rpc client: %v", err)
+	}
+
+	authRPC := authRPCHandler{client: authRPCClient}
+
 	toursGRPCAddr := os.Getenv("TOURS_GRPC_ADDR")
 	if toursGRPCAddr == "" {
 		toursGRPCAddr = "tours-service:9093"
 	}
+	toursGRPCAddr = normalizeGRPCAddress(toursGRPCAddr)
 
 	toursConn, err := grpc.NewClient(toursGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -326,6 +439,7 @@ func main() {
 	if purchaseGRPCAddr == "" {
 		purchaseGRPCAddr = "purchase-service:9094"
 	}
+	purchaseGRPCAddr = normalizeGRPCAddress(purchaseGRPCAddr)
 
 	purchaseConn, err := grpc.NewClient(purchaseGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -356,6 +470,10 @@ func main() {
 
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		if authRPC.handle(w, r) {
 			return
 		}
 

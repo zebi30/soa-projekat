@@ -98,7 +98,7 @@ function tags(id) {
 
 const actions = {
   async register(out) {
-    return api("POST", "/auth/register", {
+    return api("POST", "/rpc/auth/register", {
       username: val("reg-username"),
       email: val("reg-email"),
       password: val("reg-password"),
@@ -107,7 +107,7 @@ const actions = {
   },
 
   async login(out) {
-    const result = await api("POST", "/auth/login", {
+    const result = await api("POST", "/rpc/auth/login", {
       email: val("login-email"),
       password: val("login-password")
     });

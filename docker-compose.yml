@@ -25,6 +25,7 @@ services:
         condition: service_healthy
     environment:
       PORT: 3001
+      GRPC_PORT: 9095
       DB_HOST: auth-postgres
       DB_PORT: 5432
       DB_NAME: auth_db
@@ -180,6 +181,7 @@ services:
       - follower-service
       - purchase-service
     environment:
+      AUTH_GRPC_ADDR: authorization-service:9095
       TOURS_GRPC_ADDR: tours-service:9093
       PURCHASE_GRPC_ADDR: purchase-service:9094
     ports:
