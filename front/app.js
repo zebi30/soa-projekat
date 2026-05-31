@@ -149,11 +149,16 @@ const actions = {
   },
 
   async addKeypoint() {
+    const lat = Number(val("kp-lat"));
+    const lon = Number(val("kp-lon"));
+    if (!isFinite(lat) || !isFinite(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+      return { ok: false, status: 400, data: { message: "Neispravne koordinate za ključnu tačku." } };
+    }
     return api("POST", "/api/tours/" + val("tour-id") + "/keypoints", {
       name: val("kp-name"),
       description: val("kp-desc"),
-      latitude: num("kp-lat"),
-      longitude: num("kp-lon"),
+      latitude: lat,
+      longitude: lon,
       imageUrl: val("kp-img") || null
     });
   },
@@ -187,8 +192,24 @@ const actions = {
 
   async startExecution() {
     const tourId = val("exec-tourId");
-    const latitude = Number(val("exec-lat")) || 0;
-    const longitude = Number(val("exec-lon")) || 0;
+    let latitude = val("exec-lat") ? Number(val("exec-lat")) : null;
+    let longitude = val("exec-lon") ? Number(val("exec-lon")) : null;
+
+    // If user didn't provide coords, ask Position simulator for current position
+    if (latitude === null || longitude === null) {
+      const posRes = await api("GET", "/api/positions/me");
+      if (posRes.ok && posRes.data && posRes.data.position) {
+        latitude = posRes.data.position.latitude;
+        longitude = posRes.data.position.longitude;
+      } else {
+        return { ok: false, status: 400, data: { message: "Nije moguće dobiti poziciju iz Position simulatora i polja su prazna." } };
+      }
+    }
+
+    if (!isFinite(latitude) || !isFinite(longitude) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+      return { ok: false, status: 400, data: { message: "Neispravne start koordinate." } };
+    }
+
     const res = await api("POST", "/api/tours/" + tourId + "/execution", { latitude, longitude });
     if (res.ok && res.data && res.data.execution) {
       localStorage.setItem("soa_exec", JSON.stringify(res.data.execution));
