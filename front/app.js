@@ -185,6 +185,18 @@ const actions = {
     return api("GET", "/api/tours/published");
   },
 
+  async startExecution() {
+    const tourId = val("exec-tourId");
+    const latitude = Number(val("exec-lat")) || 0;
+    const longitude = Number(val("exec-lon")) || 0;
+    const res = await api("POST", "/api/tours/" + tourId + "/execution", { latitude, longitude });
+    if (res.ok && res.data && res.data.execution) {
+      localStorage.setItem("soa_exec", JSON.stringify(res.data.execution));
+      renderExecPanel();
+    }
+    return res;
+  },
+
   async addToCart() {
     return api("POST", "/api/cart/items", { tourId: val("cart-tourId") });
   },
@@ -260,6 +272,71 @@ const actions = {
   async blockUser() {
     return api("PATCH", "/auth/users/" + val("block-id") + "/block");
   }
+  ,
+  // Execution helpers (active tour for tourist)
+  async execLoadActive() {
+    return api("GET", "/api/executions/active");
+  },
+
+  async execComplete() {
+    const ex = JSON.parse(localStorage.getItem("soa_exec") || "null");
+    if (!ex) return { ok: false, status: 0, data: { message: "No active execution" } };
+    const res = await api("PATCH", "/api/executions/" + ex.id + "/complete");
+    if (res.ok && res.data && res.data.execution) {
+      localStorage.setItem("soa_exec", JSON.stringify(res.data.execution));
+      renderExecPanel();
+    }
+    return res;
+  },
+
+  async execAbandon() {
+    const ex = JSON.parse(localStorage.getItem("soa_exec") || "null");
+    if (!ex) return { ok: false, status: 0, data: { message: "No active execution" } };
+    const res = await api("PATCH", "/api/executions/" + ex.id + "/abandon");
+    if (res.ok && res.data && res.data.execution) {
+      localStorage.setItem("soa_exec", JSON.stringify(res.data.execution));
+      renderExecPanel();
+    }
+    return res;
+  },
+
+  async execAutoStart() {
+    const ex = JSON.parse(localStorage.getItem("soa_exec") || "null");
+    if (!ex || ex.status !== "active") return { ok: false, status: 0, data: { message: "No active execution to auto-check." } };
+    if (window.__soa_exec_timer) return { ok: true, status: 0, data: { message: "Auto already running" } };
+
+    async function tick() {
+      // get simulator position
+      const posRes = await api("GET", "/api/positions/me");
+      const pos = posRes.ok ? (posRes.data && posRes.data.position ? posRes.data.position : null) : null;
+      const simEl = document.getElementById("exec-sim-pos");
+      if (pos) {
+        if (simEl) simEl.textContent = `Sim pozicija: ${pos.latitude.toFixed(6)}, ${pos.longitude.toFixed(6)}`;
+        await api("POST", "/api/executions/" + ex.id + "/check-position", { latitude: pos.latitude, longitude: pos.longitude });
+        const fresh = await api("GET", "/api/executions/active");
+        if (fresh.ok && fresh.data && fresh.data.execution) {
+          localStorage.setItem("soa_exec", JSON.stringify(fresh.data.execution));
+          renderExecPanel();
+        }
+      } else {
+        if (simEl) simEl.textContent = "Sim pozicija: nema";
+      }
+    }
+
+    // run immediately then every 10s
+    tick();
+    window.__soa_exec_timer = setInterval(tick, 10000);
+    return { ok: true, status: 0, data: { message: "Auto started" } };
+  },
+
+  async execAutoStop() {
+    if (window.__soa_exec_timer) {
+      clearInterval(window.__soa_exec_timer);
+      window.__soa_exec_timer = null;
+      return { ok: true, status: 0, data: { message: "Auto stopped" } };
+    }
+    return { ok: false, status: 0, data: { message: "Auto not running" } };
+  }
 };
 
 const outputBySection = {
@@ -312,3 +389,31 @@ document.addEventListener("click", async (event) => {
 
 document.getElementById("apiBase").value = base();
 renderSession();
+// Execution panel rendering
+function renderExecPanel() {
+  const ex = JSON.parse(localStorage.getItem("soa_exec") || "null");
+  const setText = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+  if (!ex) {
+    setText("exec-status", "nema");
+    setText("exec-tour", "—");
+    setText("exec-start", "—");
+    setText("exec-last", "—");
+    const kps = document.getElementById("exec-kps"); if (kps) kps.innerHTML = "";
+    return;
+  }
+  setText("exec-status", ex.status || "—");
+  setText("exec-tour", ex.tourId || "—");
+  setText("exec-start", ex.startLocation ? `${ex.startLocation.latitude.toFixed(6)}, ${ex.startLocation.longitude.toFixed(6)}` : "—");
+  setText("exec-last", ex.lastActivity ? new Date(ex.lastActivity).toLocaleString() : "—");
+  const kps = document.getElementById("exec-kps");
+  if (kps) {
+    kps.innerHTML = "";
+    (ex.completedKeyPoints || []).forEach(k => {
+      const li = document.createElement("li");
+      li.textContent = `${k.keyPointId} @ ${new Date(k.completedAt).toLocaleString()}`;
+      kps.appendChild(li);
+    });
+  }
+}
+
+renderExecPanel();
