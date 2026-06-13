@@ -35,7 +35,7 @@ func (h *CommentHandler) GetByBlogID(w http.ResponseWriter, r *http.Request) {
 
 	response := make([]models.CommentResponse, 0, len(comments))
 	for _, c := range comments {
-		author, _ := client.GetUserByID(c.AuthorID)
+		author, _ := client.GetUserByID(r.Context(), c.AuthorID)
 		response = append(response, models.NewCommentResponse(c, author))
 	}
 
@@ -75,7 +75,7 @@ func (h *CommentHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	followStatus, err := client.IsCurrentUserFollowing(authHeader, blog.AuthorID)
+	followStatus, err := client.IsCurrentUserFollowing(r.Context(), authHeader, blog.AuthorID)
 	if err != nil {
 		http.Error(w, "Follower service unavailable", http.StatusBadGateway)
 		return
@@ -93,7 +93,7 @@ func (h *CommentHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	author, _ := client.GetUserByID(comment.AuthorID)
+	author, _ := client.GetUserByID(r.Context(), comment.AuthorID)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)

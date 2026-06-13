@@ -4,12 +4,13 @@ import (
     "blog-service/client"
     "blog-service/models"
     "blog-service/repository"
+    "context"
 )
 
 // CreateBlogSaga validates author via auth service then creates the blog.
-func CreateBlogSaga(repo *repository.BlogRepository, blog *models.Blog) error {
+func CreateBlogSaga(ctx context.Context, repo *repository.BlogRepository, blog *models.Blog) error {
     // validate author exists
-    if _, err := client.GetUserByID(blog.AuthorID); err != nil {
+    if _, err := client.GetUserByID(ctx, blog.AuthorID); err != nil {
         return err
     }
 
@@ -22,8 +23,8 @@ func CreateBlogSaga(repo *repository.BlogRepository, blog *models.Blog) error {
 }
 
 // UpdateBlogSaga validates author then updates the blog.
-func UpdateBlogSaga(repo *repository.BlogRepository, blog *models.Blog) error {
-    if _, err := client.GetUserByID(blog.AuthorID); err != nil {
+func UpdateBlogSaga(ctx context.Context, repo *repository.BlogRepository, blog *models.Blog) error {
+    if _, err := client.GetUserByID(ctx, blog.AuthorID); err != nil {
         return err
     }
 

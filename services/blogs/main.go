@@ -5,6 +5,8 @@ import (
 	"blog-service/handlers"
 	"blog-service/repository"
 	"blog-service/router"
+	"blog-service/tracing"
+	"context"
 	"log"
 	"net/http"
 
@@ -12,6 +14,17 @@ import (
 )
 
 func main() {
+	shutdownTracing, err := tracing.Init(context.Background())
+	if err != nil {
+		log.Printf("tracing disabled: %v", err)
+	} else {
+		defer func() {
+			if err := shutdownTracing(context.Background()); err != nil {
+				log.Printf("tracing shutdown error: %v", err)
+			}
+		}()
+	}
+
 	db := config.ConnectDB()
 	defer db.Close()
 

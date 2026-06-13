@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -15,13 +16,18 @@ type AuthorInfo struct {
 	CreatedAt string `json:"created_at"`
 }
 
-func GetUserByID(userID int) (*AuthorInfo, error) {
+func GetUserByID(ctx context.Context, userID int) (*AuthorInfo, error) {
 	authServiceURL := os.Getenv("AUTH_SERVICE_URL")
 	if authServiceURL == "" {
 		authServiceURL = "http://authorization-service:3001"
 	}
 
-	resp, err := http.Get(fmt.Sprintf("%s/auth/users/%d", authServiceURL, userID))
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/auth/users/%d", authServiceURL, userID), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
