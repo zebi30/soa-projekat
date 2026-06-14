@@ -143,6 +143,8 @@ services:
       NEO4J_USER: neo4j
       NEO4J_PASSWORD: password123
       JWT_SECRET: change-me
+      OTEL_SERVICE_NAME: follower-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
     ports:
       - "8000:8000"
 

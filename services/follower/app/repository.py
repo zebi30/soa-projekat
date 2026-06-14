@@ -1,5 +1,9 @@
 from neo4j import Driver
 
+from app.tracing import get_tracer
+
+tracer = get_tracer()
+
 
 class FollowerRepository:
     def __init__(self, driver: Driver):
@@ -16,7 +20,10 @@ class FollowerRepository:
             )
 
     def follow(self, follower_id: int, following_id: int) -> bool:
-        with self.driver.session() as session:
+        with tracer.start_as_current_span("neo4j.follow") as span, self.driver.session() as session:
+            span.set_attribute("db.system", "neo4j")
+            span.set_attribute("follower.id", follower_id)
+            span.set_attribute("following.id", following_id)
             result = session.run(
                 """
                 MERGE (follower:User {id: $follower_id})
@@ -31,7 +38,10 @@ class FollowerRepository:
             return bool(record["followed"]) if record else False
 
     def unfollow(self, follower_id: int, following_id: int) -> None:
-        with self.driver.session() as session:
+        with tracer.start_as_current_span("neo4j.unfollow") as span, self.driver.session() as session:
+            span.set_attribute("db.system", "neo4j")
+            span.set_attribute("follower.id", follower_id)
+            span.set_attribute("following.id", following_id)
             session.run(
                 """
                 MATCH (:User {id: $follower_id})-[relation:FOLLOWS]->(:User {id: $following_id})
@@ -42,7 +52,10 @@ class FollowerRepository:
             )
 
     def is_following(self, follower_id: int, following_id: int) -> bool:
-        with self.driver.session() as session:
+        with tracer.start_as_current_span("neo4j.is_following") as span, self.driver.session() as session:
+            span.set_attribute("db.system", "neo4j")
+            span.set_attribute("follower.id", follower_id)
+            span.set_attribute("following.id", following_id)
             result = session.run(
                 """
                 MATCH (:User {id: $follower_id})-[relation:FOLLOWS]->(:User {id: $following_id})
@@ -55,7 +68,9 @@ class FollowerRepository:
             return bool(record["is_following"]) if record else False
 
     def followed_user_ids(self, follower_id: int) -> list[int]:
-        with self.driver.session() as session:
+        with tracer.start_as_current_span("neo4j.followed_user_ids") as span, self.driver.session() as session:
+            span.set_attribute("db.system", "neo4j")
+            span.set_attribute("follower.id", follower_id)
             result = session.run(
                 """
                 MATCH (:User {id: $follower_id})-[:FOLLOWS]->(following:User)
@@ -67,7 +82,10 @@ class FollowerRepository:
             return [record["id"] for record in result]
 
     def recommendations(self, user_id: int, limit: int) -> list[dict]:
-        with self.driver.session() as session:
+        with tracer.start_as_current_span("neo4j.recommendations") as span, self.driver.session() as session:
+            span.set_attribute("db.system", "neo4j")
+            span.set_attribute("user.id", user_id)
+            span.set_attribute("recommendations.limit", limit)
             result = session.run(
                 """
                 MATCH (:User {id: $user_id})-[:FOLLOWS]->(:User)-[:FOLLOWS]->(recommended:User)
