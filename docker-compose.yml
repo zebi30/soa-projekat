@@ -73,6 +73,8 @@ services:
       DB_NAME: blogs_db
       AUTH_SERVICE_URL: http://authorization-service:3001
       FOLLOWER_SERVICE_URL: http://follower-service:8000
+      OTEL_SERVICE_NAME: blogs-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
     ports:
       - "8082:8082"
 

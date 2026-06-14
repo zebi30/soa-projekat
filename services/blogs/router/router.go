@@ -2,12 +2,16 @@ package router
 
 import (
 	"blog-service/handlers"
+	"blog-service/tracing"
 
 	"github.com/gorilla/mux"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
 )
 
 func NewRouter(blogH *handlers.BlogHandler, commentH *handlers.CommentHandler, voteH *handlers.VoteHandler) *mux.Router {
 	r := mux.NewRouter()
+	// Create a server span for every incoming request, named after the matched route.
+	r.Use(otelmux.Middleware(tracing.ServiceName()))
 
 	api := r.PathPrefix("/api").Subrouter()
 

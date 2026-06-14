@@ -27,7 +27,7 @@ func (h *BlogHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	followedUserIDs, err := client.GetCurrentUserFollowedIDs(authHeader)
+	followedUserIDs, err := client.GetCurrentUserFollowedIDs(r.Context(), authHeader)
 	if err != nil {
 		http.Error(w, "Follower service unavailable", http.StatusBadGateway)
 		return
@@ -62,7 +62,7 @@ func (h *BlogHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	followStatus, err := client.IsCurrentUserFollowing(authHeader, blog.AuthorID)
+	followStatus, err := client.IsCurrentUserFollowing(r.Context(), authHeader, blog.AuthorID)
 	if err != nil {
 		http.Error(w, "Follower service unavailable", http.StatusBadGateway)
 		return
@@ -93,7 +93,7 @@ func (h *BlogHandler) Create(w http.ResponseWriter, r *http.Request) {
 		blog.Status = "published"
 	}
 
-	if err := sagas.CreateBlogSaga(h.Repo, &blog); err != nil {
+	if err := sagas.CreateBlogSaga(r.Context(), h.Repo, &blog); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -117,7 +117,7 @@ func (h *BlogHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	blog.ID = id
-	if err := sagas.UpdateBlogSaga(h.Repo, &blog); err != nil {
+	if err := sagas.UpdateBlogSaga(r.Context(), h.Repo, &blog); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

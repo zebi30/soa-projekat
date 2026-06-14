@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -24,8 +25,13 @@ func followerServiceURL() string {
 	return "http://follower-service:8000"
 }
 
-func IsFollowing(followerID, followingID int) (bool, error) {
-	resp, err := http.Get(fmt.Sprintf("%s/follows/%d/%d", followerServiceURL(), followerID, followingID))
+func IsFollowing(ctx context.Context, followerID, followingID int) (bool, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/follows/%d/%d", followerServiceURL(), followerID, followingID), nil)
+	if err != nil {
+		return false, err
+	}
+
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return false, err
 	}
@@ -43,14 +49,14 @@ func IsFollowing(followerID, followingID int) (bool, error) {
 	return status.IsFollowing, nil
 }
 
-func IsCurrentUserFollowing(authHeader string, followingID int) (*FollowStatus, error) {
-	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/follows/me/%d", followerServiceURL(), followingID), nil)
+func IsCurrentUserFollowing(ctx context.Context, authHeader string, followingID int) (*FollowStatus, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/follows/me/%d", followerServiceURL(), followingID), nil)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Authorization", authHeader)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -68,8 +74,13 @@ func IsCurrentUserFollowing(authHeader string, followingID int) (*FollowStatus, 
 	return &status, nil
 }
 
-func GetFollowedUserIDs(userID int) ([]int, error) {
-	resp, err := http.Get(fmt.Sprintf("%s/users/%d/following", followerServiceURL(), userID))
+func GetFollowedUserIDs(ctx context.Context, userID int) ([]int, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/users/%d/following", followerServiceURL(), userID), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -92,14 +103,14 @@ func GetFollowedUserIDs(userID int) ([]int, error) {
 	return ids, nil
 }
 
-func GetCurrentUserFollowedIDs(authHeader string) ([]int, error) {
-	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/me/following", followerServiceURL()), nil)
+func GetCurrentUserFollowedIDs(ctx context.Context, authHeader string) ([]int, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/me/following", followerServiceURL()), nil)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Authorization", authHeader)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
