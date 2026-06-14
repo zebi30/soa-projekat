@@ -35,6 +35,8 @@ services:
       ADMIN_EMAIL: admin@soa.local
       ADMIN_PASSWORD: admin123
       ADMIN_USERNAME: admin
+      OTEL_SERVICE_NAME: authorization-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
     ports:
       - "3001:3001"
     command: sh -c "npm run db:init && npm run db:seed-admin && npm start"
