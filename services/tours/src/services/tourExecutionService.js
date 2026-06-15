@@ -85,6 +85,16 @@ async function completeExecution(touristId, executionId) {
   if (String(execution.touristId) !== String(touristId)) throw createHttpError(403, "Access denied.");
   if (execution.status !== "active") throw createHttpError(400, "Only active executions can be completed.");
 
+  // A tour can only be completed once every key point has been visited.
+  const tour = await Tour.findById(execution.tourId);
+  if (!tour) throw createHttpError(404, "Tour not found.");
+  const completed = new Set(execution.completedKeyPoints.map((c) => String(c.keyPointId)));
+  const allVisited =
+    tour.keyPoints.length > 0 && tour.keyPoints.every((kp) => completed.has(String(kp._id)));
+  if (!allVisited) {
+    throw createHttpError(400, "You must visit all key points before completing the tour.");
+  }
+
   const now = new Date();
   execution.status = "completed";
   execution.endTime = now;

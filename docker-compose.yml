@@ -111,6 +111,7 @@ services:
       MONGO_URI: mongodb://tour-mongo:27017/tours_db
       JWT_SECRET: change-me
       INTERNAL_API_KEY: internal-secret-key
+      PURCHASE_SERVICE_URL: http://purchase-service:8084
       OTEL_SERVICE_NAME: tours-service
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
     ports:
@@ -198,6 +199,15 @@ services:
       PURCHASE_GRPC_ADDR: purchase-service:9094
     ports:
       - "8080:80"
+
+  frontend:
+    build:
+      context: ./front-react
+    container_name: frontend
+    depends_on:
+      - gateway
+    ports:
+      - "8085:80"
 
   prometheus:
     image: prom/prometheus:v2.54.1
