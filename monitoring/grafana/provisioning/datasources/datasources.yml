@@ -12,3 +12,10 @@ datasources:
     type: loki
     access: proxy
     url: http://loki:3100
+
+  # Lets Grafana visualize traces too, so metrics + logs + tracing live in one tool.
+  - name: Jaeger
+    type: jaeger
+    uid: jaeger
+    access: proxy
+    url: http://jaeger:16686
