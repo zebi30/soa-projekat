@@ -111,6 +111,7 @@ services:
       MONGO_URI: mongodb://tour-mongo:27017/tours_db
       JWT_SECRET: change-me
       INTERNAL_API_KEY: internal-secret-key
+      PURCHASE_SERVICE_URL: http://purchase-service:8084
       OTEL_SERVICE_NAME: tours-service
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
     ports:
@@ -143,6 +144,8 @@ services:
       NEO4J_USER: neo4j
       NEO4J_PASSWORD: password123
       JWT_SECRET: change-me
+      OTEL_SERVICE_NAME: follower-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
     ports:
       - "8000:8000"
 
@@ -197,6 +200,15 @@ services:
     ports:
       - "8080:80"
 
+  frontend:
+    build:
+      context: ./front-react
+    container_name: frontend
+    depends_on:
+      - gateway
+    ports:
+      - "8085:80"
+
   prometheus:
     image: prom/prometheus:v2.54.1
     container_name: prometheus
@@ -224,6 +236,18 @@ services:
       - /dev/disk/:/dev/disk:ro
     ports:
       - "8081:8080"
+
+  # Per-container metrics via the Docker Engine API (same source as `docker stats`).
+  # Reliable on Docker Desktop, where cAdvisor cannot resolve containers under the
+  # containerd image store.
+  docker-stats-exporter:
+    build:
+      context: ./monitoring/docker-stats-exporter
+    container_name: docker-stats-exporter
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - "9417:9417"
 
   grafana:
     image: grafana/grafana:11.2.0

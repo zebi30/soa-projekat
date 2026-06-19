@@ -8,6 +8,7 @@ from app.config import settings
 from app.repository import FollowerRepository
 from app.schemas import FollowRequest, FollowStatus, Recommendation, UserNode
 from app.service import FollowerService
+from app.tracing import configure_tracing
 
 
 repository = FollowerRepository(
@@ -26,6 +27,10 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Follower Service", version="1.0.0", lifespan=lifespan)
+
+# Install the global tracer provider and create a server span per request,
+# extracting the inbound trace context propagated from upstream services.
+configure_tracing(app)
 
 
 def get_service() -> FollowerService:
