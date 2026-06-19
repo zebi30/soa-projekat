@@ -1,0 +1,127 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 1,
+  "schemaVersion": 39,
+  "title": "Container Metrics",
+  "uid": "container-metrics",
+  "tags": ["infrastructure", "containers"],
+  "time": { "from": "now-30m", "to": "now" },
+  "refresh": "10s",
+  "templating": { "list": [] },
+  "panels": [
+    {
+      "type": "timeseries",
+      "id": 1,
+      "title": "CPU usage per container",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "max"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "dockerstats_cpu_percent",
+          "legendFormat": "{{name}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "id": 2,
+      "title": "Memory usage per container",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "max"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "dockerstats_memory_usage_bytes",
+          "legendFormat": "{{name}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "id": 3,
+      "title": "Filesystem usage per container (writable layer)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 10 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "dockerstats_fs_usage_bytes",
+          "legendFormat": "{{name}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "id": 4,
+      "title": "Network throughput per container",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 10 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "rate(dockerstats_network_receive_bytes_total[1m])",
+          "legendFormat": "rx {{name}}"
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "rate(dockerstats_network_transmit_bytes_total[1m])",
+          "legendFormat": "tx {{name}}"
+        }
+      ]
+    }
+  ]
+}

@@ -237,6 +237,18 @@ services:
     ports:
       - "8081:8080"
 
+  # Per-container metrics via the Docker Engine API (same source as `docker stats`).
+  # Reliable on Docker Desktop, where cAdvisor cannot resolve containers under the
+  # containerd image store.
+  docker-stats-exporter:
+    build:
+      context: ./monitoring/docker-stats-exporter
+    container_name: docker-stats-exporter
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - "9417:9417"
+
   grafana:
     image: grafana/grafana:11.2.0
     container_name: grafana
